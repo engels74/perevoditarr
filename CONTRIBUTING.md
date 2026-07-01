@@ -27,6 +27,7 @@ win; where they conflict on product behavior, the PRD wins.
 | Backend lint/format | `ruff format` + `ruff check --fix` | black, isort, flake8 |
 | Backend types | `basedpyright` (`recommended` mode) | mypy, plain pyright |
 | Frontend packages | [`bun`](https://bun.com/) (`bun install`, `bun add`) | npm, pnpm, yarn |
+| Frontend lint/format | [`biome`](https://biomejs.dev/) (`biome check`) | eslint, prettier |
 | Frontend tests | `bun test` (bun:test) | jest, vitest |
 | Git hooks | [`prek`](https://prek.j178.dev/) | pre-commit (Python) |
 
@@ -63,7 +64,7 @@ uv run pytest
 # Frontend
 cd frontend
 bun run check     # svelte-check
-bun run lint      # eslint + prettier --check
+bun run lint      # biome check
 bun test
 bun --bun vite build
 

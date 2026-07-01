@@ -43,8 +43,8 @@ hooks = [
   { id = "ruff-format", name = "ruff format", entry = "uv run --project backend ruff format", language = "system", types = ["python"], files = "^backend/" },
   { id = "ruff-check", name = "ruff check", entry = "uv run --project backend ruff check --fix", language = "system", types = ["python"], files = "^backend/" },
   { id = "basedpyright", name = "basedpyright", entry = "uv run --project backend basedpyright", language = "system", types = ["python"], files = "^backend/", pass_filenames = false },
-  # Frontend (Conventions §0: Bun / prettier / eslint / svelte-check; svelte-check covers the tsc type gate)
-  { id = "prettier", name = "prettier", entry = "bun run --cwd frontend format", language = "system", files = "^frontend/", pass_filenames = false },
-  { id = "eslint", name = "eslint", entry = "bun run --cwd frontend lint", language = "system", files = "^frontend/", pass_filenames = false },
+  # Frontend (Bun / Biome / svelte-check; svelte-check covers the tsc type gate).
+  # Biome replaces the plan's prettier+eslint hooks by explicit project decision.
+  { id = "biome-check", name = "biome check", entry = "bun run --cwd frontend lint", language = "system", files = "^frontend/", pass_filenames = false },
   { id = "svelte-check", name = "svelte check", entry = "bun run --cwd frontend check", language = "system", files = "^frontend/", pass_filenames = false },
 ]

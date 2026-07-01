@@ -1,14 +1,14 @@
 <script lang="ts">
-	import { Badge } from '$lib/components/ui/badge';
-	import { Button } from '$lib/components/ui/button';
-	import * as Card from '$lib/components/ui/card';
-	import { createHelloState } from '$lib/state/hello.svelte';
+import { Badge } from '$lib/components/ui/badge';
+import { Button } from '$lib/components/ui/button';
+import * as Card from '$lib/components/ui/card';
+import { createHelloState } from '$lib/state/hello.svelte';
 
-	const hello = createHelloState();
+const hello = createHelloState();
 
-	$effect(() => {
-		void hello.load();
-	});
+$effect(() => {
+	void hello.load();
+});
 </script>
 
 <Card.Root class="max-w-md">

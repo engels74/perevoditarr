@@ -1,11 +1,11 @@
 <script lang="ts">
-	import 'virtual:uno.css';
-	import '../app.css';
-	import { ModeWatcher } from 'mode-watcher';
-	import favicon from '$lib/assets/favicon.svg';
-	import ThemeToggle from '$lib/components/theme-toggle.svelte';
+import 'virtual:uno.css';
+import '../app.css';
+import { ModeWatcher } from 'mode-watcher';
+import favicon from '$lib/assets/favicon.svg';
+import ThemeToggle from '$lib/components/theme-toggle.svelte';
 
-	let { children } = $props();
+let { children } = $props();
 </script>
 
 <svelte:head>

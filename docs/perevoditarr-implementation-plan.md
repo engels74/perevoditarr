@@ -46,7 +46,7 @@ These are distilled from the rules files and PRD §2/§6. Violations are review 
 ## Phase 0 — Repository, tooling & scaffolding (pre-M0)
 
 ### P0-T1 · Monorepo scaffold
-- [ ] Create repository layout:
+- [x] Create repository layout:
   ```
   perevoditarr/
   ├─ .augment/rules/            # backend-dev-pro.md, frontend-dev-pro.md (copied in, versioned)
@@ -72,12 +72,12 @@ These are distilled from the rules files and PRD §2/§6. Violations are review 
   ├─ docs/                      # PRD, tech design docs, ADRs
   └─ .github/workflows/
   ```
-- [ ] Copy the two rules files into `.augment/rules/` and reference them from `CONTRIBUTING.md`.
-- [ ] Add `docs/adr/` with ADR-0001 (reconciliation architecture), ADR-0002 (scheduling invariant), ADR-0003 (two-plane separation) capturing PRD §6–§7 decisions.
+- [x] Copy the two rules files into `.augment/rules/` and reference them from `CONTRIBUTING.md`.
+- [x] Add `docs/adr/` with ADR-0001 (reconciliation architecture), ADR-0002 (scheduling invariant), ADR-0003 (two-plane separation) capturing PRD §6–§7 decisions.
 
 ### P0-T2 · prek pre-commit hooks
-- [ ] Install [prek](https://prek.j178.dev/) (Rust-native pre-commit runner): `uv tool install prek` (or the standalone installer); document in `CONTRIBUTING.md`.
-- [ ] Add `prek.toml` at the repo root (docs: <https://prek.j178.dev/configuration/>; single root config — prek's workspace mode with per-subproject configs stays available if backend/frontend ever need to diverge):
+- [x] Install [prek](https://prek.j178.dev/) (Rust-native pre-commit runner): `uv tool install prek` (or the standalone installer); document in `CONTRIBUTING.md`.
+- [x] Add `prek.toml` at the repo root (docs: <https://prek.j178.dev/configuration/>; single root config — prek's workspace mode with per-subproject configs stays available if backend/frontend ever need to diverge):
   ```toml
   # prek.toml — pre-commit hooks configuration
   # Docs: https://prek.j178.dev/configuration/
@@ -130,37 +130,37 @@ These are distilled from the rules files and PRD §2/§6. Violations are review 
     { id = "svelte-check", name = "svelte check", entry = "bun run --cwd frontend check", language = "system", files = "^frontend/", pass_filenames = false },
   ]
   ```
-- [ ] `prek install --hook-type pre-commit --hook-type commit-msg` (commit-msg stage is required for the Conventional Commits hook); add to onboarding docs alongside `uv sync`/`bun install`.
-- [ ] The `local` hooks call the uv/Bun toolchains from P0-T3/P0-T4 and are path-scoped (`files = "^backend/"` / `"^frontend/"`), so they only fire once those trees exist — installing prek first is safe.
-- [ ] Tests and builds (`pytest`, `bun test`, `vite build`) stay in CI (P0-T5); hooks cover format/lint/type-check only, to keep commits fast.
+- [x] `prek install --hook-type pre-commit --hook-type commit-msg` (commit-msg stage is required for the Conventional Commits hook); add to onboarding docs alongside `uv sync`/`bun install`.
+- [x] The `local` hooks call the uv/Bun toolchains from P0-T3/P0-T4 and are path-scoped (`files = "^backend/"` / `"^frontend/"`), so they only fire once those trees exist — installing prek first is safe.
+- [x] Tests and builds (`pytest`, `bun test`, `vite build`) stay in CI (P0-T5); hooks cover format/lint/type-check only, to keep commits fast.
 
 ### P0-T3 · Backend project bootstrap
-- [ ] `uv init`, `uv python pin 3.14`, `requires-python = ">=3.14"`.
-- [ ] `uv add litestar granian litestar-granian msgspec "sqlalchemy[asyncio]" asyncpg aiosqlite advanced-alchemy alembic structlog httpx apprise authlib argon2-cffi cryptography python-socketio pysignalr`.
-- [ ] `uv add --dev ruff basedpyright pytest pytest-asyncio polyfactory respx`.
-- [ ] Configure `[tool.ruff]` (line-length 88, `select = ["E","F","I","UP","B","SIM","C4","ASYNC","RUF"]`, isort first-party `perevoditarr`) and `[tool.ruff.format]` per rules doc.
-- [ ] Configure `[tool.basedpyright]` (`pythonVersion = "3.14"`, `typeCheckingMode = "recommended"`, include `src`+`tests`).
-- [ ] Minimal `Litestar` app factory with `GranianPlugin`; `/api/v1/health` handler; verify `uv run litestar run --reload` boots.
-- [ ] Verify the prek backend hooks (P0-T2) go green: `prek run --all-files`.
+- [x] `uv init`, `uv python pin 3.14`, `requires-python = ">=3.14"`.
+- [x] `uv add litestar granian litestar-granian msgspec "sqlalchemy[asyncio]" asyncpg aiosqlite advanced-alchemy alembic structlog httpx apprise authlib argon2-cffi cryptography python-socketio pysignalr`.
+- [x] `uv add --dev ruff basedpyright pytest pytest-asyncio polyfactory respx`.
+- [x] Configure `[tool.ruff]` (line-length 88, `select = ["E","F","I","UP","B","SIM","C4","ASYNC","RUF"]`, isort first-party `perevoditarr`) and `[tool.ruff.format]` per rules doc.
+- [x] Configure `[tool.basedpyright]` (`pythonVersion = "3.14"`, `typeCheckingMode = "recommended"`, include `src`+`tests`).
+- [x] Minimal `Litestar` app factory with `GranianPlugin`; `/api/v1/health` handler; verify `uv run litestar run --reload` boots.
+- [x] Verify the prek backend hooks (P0-T2) go green: `prek run --all-files`.
 
 ### P0-T4 · Frontend project bootstrap
-- [ ] Scaffold SvelteKit 2 + Svelte 5 with Bun; TS strict, `moduleResolution: "bundler"`, `verbatimModuleSyntax`.
-- [ ] Adapter: `@sveltejs/adapter-static` with `fallback: 'index.html'`; root layout `export const ssr = false; export const prerender = false;` (SPA served same-origin by the backend — deployment-target-appropriate per rules doc's adapter table; document rationale in ADR-0004).
-- [ ] UnoCSS Path A per rules doc: `bun add -d unocss @unocss/preset-wind4 unocss-preset-animations unocss-preset-shadcn @unocss/extractor-svelte` + `bun add bits-ui @lucide/svelte tailwind-variants clsx tailwind-merge mode-watcher svelte-sonner`.
-- [ ] `uno.config.ts`: `presetWind4()`, `presetAnimations()`, `presetShadcn(...)`, `extractorSvelte()`, transformers (variant-group), **widened content pipeline** to scan `src/**/*.{js,ts}` for generated theme classes.
-- [ ] Empty `tailwind.config.js` + manual `components.json` + `cn()` util; add first components via `bunx shadcn-svelte@latest add button card input table dialog dropdown-menu badge tabs sonner`.
-- [ ] Root layout: `virtual:uno.css` import + `<ModeWatcher />`; theme toggle wired to `mode-watcher`.
-- [ ] `vite.config.ts`: `UnoCSS()` **before** `sveltekit()`; dev proxy `/api` + `/sse` → `http://localhost:8000`.
-- [ ] Scripts: `"dev": "bun --bun vite dev"`, build/preview/check/test/lint/format; eslint flat config + prettier-plugin-svelte per rules doc.
-- [ ] `bun:test` wiring incl. happy-dom preload (`bunfig.toml [test] preload`) for component tests; smoke test for a `.svelte.ts` module.
-- [ ] `bunfig.toml` `[install] minimumReleaseAge` supply-chain hardening per rules doc.
+- [x] Scaffold SvelteKit 2 + Svelte 5 with Bun; TS strict, `moduleResolution: "bundler"`, `verbatimModuleSyntax`.
+- [x] Adapter: `@sveltejs/adapter-static` with `fallback: 'index.html'`; root layout `export const ssr = false; export const prerender = false;` (SPA served same-origin by the backend — deployment-target-appropriate per rules doc's adapter table; document rationale in ADR-0004).
+- [x] UnoCSS Path A per rules doc: `bun add -d unocss @unocss/preset-wind4 unocss-preset-animations unocss-preset-shadcn @unocss/extractor-svelte` + `bun add bits-ui @lucide/svelte tailwind-variants clsx tailwind-merge mode-watcher svelte-sonner`.
+- [x] `uno.config.ts`: `presetWind4()`, `presetAnimations()`, `presetShadcn(...)`, `extractorSvelte()`, transformers (variant-group), **widened content pipeline** to scan `src/**/*.{js,ts}` for generated theme classes.
+- [x] Empty `tailwind.config.js` + manual `components.json` + `cn()` util; add first components via `bunx shadcn-svelte@latest add button card input table dialog dropdown-menu badge tabs sonner`.
+- [x] Root layout: `virtual:uno.css` import + `<ModeWatcher />`; theme toggle wired to `mode-watcher`.
+- [x] `vite.config.ts`: `UnoCSS()` **before** `sveltekit()`; dev proxy `/api` + `/sse` → `http://localhost:8000`.
+- [x] Scripts: `"dev": "bun --bun vite dev"`, build/preview/check/test/lint/format; eslint flat config + prettier-plugin-svelte per rules doc.
+- [x] `bun:test` wiring incl. happy-dom preload (`bunfig.toml [test] preload`) for component tests; smoke test for a `.svelte.ts` module.
+- [x] `bunfig.toml` `[install] minimumReleaseAge` supply-chain hardening per rules doc.
 
 ### P0-T5 · CI & container skeleton
-- [ ] GitHub Actions — backend job: `uv sync --frozen`, `ruff check`, `ruff format --check`, `basedpyright`, `pytest`.
-- [ ] Frontend job: `bun install --frozen-lockfile`, `svelte-check`, `eslint`, `bun test`, `bun --bun vite build`.
-- [ ] Hooks job: `prek run --all-files --show-diff-on-failure` against the committed `prek.toml` (catches contributors who skipped `prek install`).
-- [ ] Docker: multi-stage build (Bun build of SPA → uv-based Python image; Litestar serves `/api/v1`, `/schema`, SSE, and the SPA static files with fallback). Multi-arch (amd64/arm64). Compose examples: postgres-backed and sqlite-backed.
-- [ ] CI docker-build job (no push) to keep the image honest from day one.
+- [x] GitHub Actions — backend job: `uv sync --frozen`, `ruff check`, `ruff format --check`, `basedpyright`, `pytest`.
+- [x] Frontend job: `bun install --frozen-lockfile`, `svelte-check`, `eslint`, `bun test`, `bun --bun vite build`.
+- [x] Hooks job: `prek run --all-files --show-diff-on-failure` against the committed `prek.toml` (catches contributors who skipped `prek install`).
+- [x] Docker: multi-stage build (Bun build of SPA → uv-based Python image; Litestar serves `/api/v1`, `/schema`, SSE, and the SPA static files with fallback). Multi-arch (amd64/arm64). Compose examples: postgres-backed and sqlite-backed.
+- [x] CI docker-build job (no push) to keep the image honest from day one.
 
 **Phase 0 exit:** empty-but-real app boots in Docker; both CI pipelines green (incl. `prek run --all-files`); prek hooks fire locally on commit; a `hello` API route renders data in the SPA shell through the dev proxy.
 
@@ -379,4 +379,3 @@ These are distilled from the rules files and PRD §2/§6. Violations are review 
 - [ ] Capability-detection slots re-verified against each new upstream Bazarr/Lingarr release (no feature may start depending on unmerged upstream changes — PRD §2.4).
 - [ ] Simulators updated whenever upstream pinned versions move; contract tests are the tripwire.
 - [ ] Each phase closes with: quality gates green (Conventions §0), phase exit criterion demoed, docs updated, and a tagged pre-release.
-

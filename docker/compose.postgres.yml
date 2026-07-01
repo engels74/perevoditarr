@@ -1,0 +1,36 @@
+# Perevoditarr + PostgreSQL (the default and recommended engine, PRD NFR-2).
+# Run from the repository root:  docker compose -f docker/compose.postgres.yml up
+services:
+  perevoditarr:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: perevoditarr
+    ports:
+      - "8000:8000"
+    environment:
+      # Consumed by the backend from Phase 1 (P1-T1) onward; documents the shape now.
+      PEREVODITARR_DATABASE_URL: postgresql+asyncpg://perevoditarr:perevoditarr@db:5432/perevoditarr
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db:
+    image: postgres:18
+    container_name: perevoditarr-db
+    environment:
+      POSTGRES_USER: perevoditarr
+      POSTGRES_PASSWORD: perevoditarr
+      POSTGRES_DB: perevoditarr
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U perevoditarr -d perevoditarr"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  pgdata:

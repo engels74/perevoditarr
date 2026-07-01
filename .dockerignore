@@ -1,0 +1,15 @@
+# Keep the build context lean — the Dockerfile copies backend/ and frontend/ wholesale.
+.git
+.github
+.omc
+.vscode
+docs
+**/node_modules
+**/.svelte-kit
+**/build
+**/.venv
+**/__pycache__
+**/.pytest_cache
+**/.ruff_cache
+frontend/build
+backend/.venv

@@ -1,0 +1,72 @@
+[project]
+name = "perevoditarr"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "engels74", email = "141435164+engels74@users.noreply.github.com" }
+]
+requires-python = ">=3.14"
+dependencies = [
+    "advanced-alchemy>=1.11.0",
+    "aiosqlite>=0.22.1",
+    "alembic>=1.18.5",
+    "apprise>=1.11.0",
+    "argon2-cffi>=25.1.0",
+    "asyncpg>=0.31.0",
+    "authlib>=1.7.2",
+    "cryptography>=49.0.0",
+    "granian>=2.7.8",
+    "httpx>=0.28.1",
+    "litestar>=2.24.0",
+    "litestar-granian>=0.15.0",
+    "msgspec>=0.21.1",
+    "pysignalr>=1.3.2",
+    "python-socketio>=5.16.3",
+    "sqlalchemy[asyncio]>=2.0.51",
+    "structlog>=26.1.0",
+]
+
+[build-system]
+requires = ["uv_build>=0.11.26,<0.12.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "basedpyright>=1.39.9",
+    "polyfactory>=3.3.0",
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+    "respx>=0.23.1",
+    "ruff>=0.15.20",
+]
+
+[project.scripts]
+perevoditarr = "perevoditarr.cli:main"
+
+[tool.ruff]
+line-length = 88
+target-version = "py314"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "C4", "ASYNC", "RUF"]
+ignore = ["E501"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["perevoditarr"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+
+[tool.basedpyright]
+pythonVersion = "3.14"
+typeCheckingMode = "recommended"
+include = ["src", "tests"]
+reportMissingTypeStubs = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"

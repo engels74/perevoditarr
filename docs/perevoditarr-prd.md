@@ -472,4 +472,3 @@ Entity families (technical design will refine):
 | **Correctness plane / telemetry plane** | Durable-evidence reconciliation vs. best-effort live progress; strictly separated. |
 | **Rails** | The composable safety mechanisms of §8.4. |
 | **Doctor** | The read-only cross-application configuration checker. |
-

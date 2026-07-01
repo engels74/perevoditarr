@@ -39,6 +39,7 @@ These are distilled from the rules files and PRD §2/§6. Violations are review 
 - [ ] Modular layout per PRD §2.2: each bounded area is a package/module with its own controllers|routes, services, repositories, schemas|types; cross-feature access only through public module interfaces.
 - [ ] Every endpoint appears in OpenAPI with typed schemas; the UI consumes only `/api/v1`.
 - [ ] Secrets never logged, never returned in plaintext after write, masked in UI.
+- [ ] prek pre-commit hooks (P0-T2) installed and passing on every commit — fix findings, don't bypass (`--no-verify` is a review blocker).
 
 ---
 
@@ -74,16 +75,75 @@ These are distilled from the rules files and PRD §2/§6. Violations are review 
 - [ ] Copy the two rules files into `.augment/rules/` and reference them from `CONTRIBUTING.md`.
 - [ ] Add `docs/adr/` with ADR-0001 (reconciliation architecture), ADR-0002 (scheduling invariant), ADR-0003 (two-plane separation) capturing PRD §6–§7 decisions.
 
-### P0-T2 · Backend project bootstrap
+### P0-T2 · prek pre-commit hooks
+- [ ] Install [prek](https://prek.j178.dev/) (Rust-native pre-commit runner): `uv tool install prek` (or the standalone installer); document in `CONTRIBUTING.md`.
+- [ ] Add `prek.toml` at the repo root (docs: <https://prek.j178.dev/configuration/>; single root config — prek's workspace mode with per-subproject configs stays available if backend/frontend ever need to diverge):
+  ```toml
+  # prek.toml — pre-commit hooks configuration
+  # Docs: https://prek.j178.dev/configuration/
+
+  # Builtin hooks — fast, offline, Rust-native
+  [[repos]]
+  repo = "builtin"
+  hooks = [
+    { id = "trailing-whitespace" },
+    { id = "end-of-file-fixer" },
+    { id = "mixed-line-ending", args = ["--fix=lf"] },
+    { id = "check-merge-conflict" },
+    { id = "check-case-conflict" },
+    { id = "check-added-large-files", args = ["--maxkb=512"] },
+    { id = "detect-private-key" },
+    { id = "check-json" },
+    { id = "check-toml" },
+    { id = "check-yaml" },
+    { id = "no-commit-to-branch", args = ["--branch", "main"] },
+  ]
+
+  # Conventional Commits — enforce Conventional Commit message format.
+  [[repos]]
+  repo = "https://github.com/compilerla/conventional-pre-commit"
+  rev = "v4.4.0"
+  hooks = [
+    { id = "conventional-pre-commit", stages = ["commit-msg"] },
+  ]
+
+  # Secret / credential leak guard — instance credentials, fixtures and dotfiles
+  # must never carry tokens (Conventions §0: secrets never logged/leaked).
+  [[repos]]
+  repo = "https://github.com/gitleaks/gitleaks"
+  rev = "v8.30.1"
+  hooks = [
+    { id = "gitleaks" },
+  ]
+
+  # Local hooks — project-specific quality gates, path-scoped for the monorepo
+  [[repos]]
+  repo = "local"
+  hooks = [
+    # Backend (Conventions §0: uv / ruff / basedpyright)
+    { id = "ruff-format", name = "ruff format", entry = "uv run --project backend ruff format", language = "system", types = ["python"], files = "^backend/" },
+    { id = "ruff-check", name = "ruff check", entry = "uv run --project backend ruff check --fix", language = "system", types = ["python"], files = "^backend/" },
+    { id = "basedpyright", name = "basedpyright", entry = "uv run --project backend basedpyright", language = "system", types = ["python"], files = "^backend/", pass_filenames = false },
+    # Frontend (Conventions §0: Bun / prettier / eslint / svelte-check; svelte-check covers the tsc type gate)
+    { id = "prettier", name = "prettier", entry = "bun run --cwd frontend format", language = "system", files = "^frontend/", pass_filenames = false },
+    { id = "eslint", name = "eslint", entry = "bun run --cwd frontend lint", language = "system", files = "^frontend/", pass_filenames = false },
+    { id = "svelte-check", name = "svelte check", entry = "bun run --cwd frontend check", language = "system", files = "^frontend/", pass_filenames = false },
+  ]
+  ```
+- [ ] `prek install --hook-type pre-commit --hook-type commit-msg` (commit-msg stage is required for the Conventional Commits hook); add to onboarding docs alongside `uv sync`/`bun install`.
+- [ ] The `local` hooks call the uv/Bun toolchains from P0-T3/P0-T4 and are path-scoped (`files = "^backend/"` / `"^frontend/"`), so they only fire once those trees exist — installing prek first is safe.
+- [ ] Tests and builds (`pytest`, `bun test`, `vite build`) stay in CI (P0-T5); hooks cover format/lint/type-check only, to keep commits fast.
+
+### P0-T3 · Backend project bootstrap
 - [ ] `uv init`, `uv python pin 3.14`, `requires-python = ">=3.14"`.
 - [ ] `uv add litestar granian litestar-granian msgspec "sqlalchemy[asyncio]" asyncpg aiosqlite advanced-alchemy alembic structlog httpx apprise authlib argon2-cffi cryptography python-socketio pysignalr`.
 - [ ] `uv add --dev ruff basedpyright pytest pytest-asyncio polyfactory respx`.
 - [ ] Configure `[tool.ruff]` (line-length 88, `select = ["E","F","I","UP","B","SIM","C4","ASYNC","RUF"]`, isort first-party `perevoditarr`) and `[tool.ruff.format]` per rules doc.
 - [ ] Configure `[tool.basedpyright]` (`pythonVersion = "3.14"`, `typeCheckingMode = "recommended"`, include `src`+`tests`).
 - [ ] Minimal `Litestar` app factory with `GranianPlugin`; `/api/v1/health` handler; verify `uv run litestar run --reload` boots.
-- [ ] Pre-commit hooks: `ruff-check --fix`, `ruff-format`.
+- [ ] Verify the prek backend hooks (P0-T2) go green: `prek run --all-files`.
 
-### P0-T3 · Frontend project bootstrap
+### P0-T4 · Frontend project bootstrap
 - [ ] Scaffold SvelteKit 2 + Svelte 5 with Bun; TS strict, `moduleResolution: "bundler"`, `verbatimModuleSyntax`.
 - [ ] Adapter: `@sveltejs/adapter-static` with `fallback: 'index.html'`; root layout `export const ssr = false; export const prerender = false;` (SPA served same-origin by the backend — deployment-target-appropriate per rules doc's adapter table; document rationale in ADR-0004).
 - [ ] UnoCSS Path A per rules doc: `bun add -d unocss @unocss/preset-wind4 unocss-preset-animations unocss-preset-shadcn @unocss/extractor-svelte` + `bun add bits-ui @lucide/svelte tailwind-variants clsx tailwind-merge mode-watcher svelte-sonner`.
@@ -95,13 +155,14 @@ These are distilled from the rules files and PRD §2/§6. Violations are review 
 - [ ] `bun:test` wiring incl. happy-dom preload (`bunfig.toml [test] preload`) for component tests; smoke test for a `.svelte.ts` module.
 - [ ] `bunfig.toml` `[install] minimumReleaseAge` supply-chain hardening per rules doc.
 
-### P0-T4 · CI & container skeleton
+### P0-T5 · CI & container skeleton
 - [ ] GitHub Actions — backend job: `uv sync --frozen`, `ruff check`, `ruff format --check`, `basedpyright`, `pytest`.
 - [ ] Frontend job: `bun install --frozen-lockfile`, `svelte-check`, `eslint`, `bun test`, `bun --bun vite build`.
+- [ ] Hooks job: `prek run --all-files --show-diff-on-failure` against the committed `prek.toml` (catches contributors who skipped `prek install`).
 - [ ] Docker: multi-stage build (Bun build of SPA → uv-based Python image; Litestar serves `/api/v1`, `/schema`, SSE, and the SPA static files with fallback). Multi-arch (amd64/arm64). Compose examples: postgres-backed and sqlite-backed.
 - [ ] CI docker-build job (no push) to keep the image honest from day one.
 
-**Phase 0 exit:** empty-but-real app boots in Docker; both CI pipelines green; a `hello` API route renders data in the SPA shell through the dev proxy.
+**Phase 0 exit:** empty-but-real app boots in Docker; both CI pipelines green (incl. `prek run --all-files`); prek hooks fire locally on commit; a `hello` API route renders data in the SPA shell through the dev proxy.
 
 ---
 

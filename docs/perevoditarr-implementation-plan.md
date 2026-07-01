@@ -6,6 +6,7 @@
 | **Governed by** | `.augment/rules/backend-dev-pro.md`, `.augment/rules/frontend-dev-pro.md` (binding for all code; PRD §2) |
 | **Structure** | Phases map 1:1 to PRD milestones (Phase 0 = pre-M0 foundations; Phases 1–5 = M0–M4). Tasks carry IDs (`P<phase>-T<n>`) for cross-referencing in issues/PRs. |
 | **Rule of thumb** | A task is done only when its subtasks are checked **and** the Phase quality gates pass. |
+| **Reference sources** | If need be, local checkouts of the Lingarr and Bazarr source code live one level above this repo in `../translate-repos/` (`lingarr-translate-lingarr/`, `morpheus65535-bazarr/`) — consult them when upstream API/behavior details are unclear. |
 
 ---
 

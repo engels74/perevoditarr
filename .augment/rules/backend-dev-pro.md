@@ -1,179 +1,297 @@
 ---
 type: "agent_requested"
-description: "Litestar + Granian + msgspec + SQLAlchemy async Python backend coding guidelines"
+description: "Litestar / Granian / msgspec / SQLAlchemy async — Python 3.14 backend coding guidelines"
 ---
-# Litestar / Granian / msgspec / SQLAlchemy Async — Modern Python Backend Reference
+# Litestar / Granian / msgspec / SQLAlchemy Async — Backend Reference
 
-This stack is a fully-typed, async-first, Rust-accelerated Python backend built for throughput and correctness. Litestar is the application framework, msgspec is the serialization/validation core (not Pydantic), Granian is the Rust HTTP server (not uvicorn/gunicorn), SQLAlchemy 2.0 async over asyncpg is the persistence layer (usually via Advanced Alchemy's repository/service layer), and the tooling is the Astral/DetachHead trio — uv, ruff, and basedpyright. Optimize for: async everywhere (never block the event loop), msgspec `Struct`s and SQLAlchemy DTOs instead of hand-written serializers, eager relationship loading (lazy loading raises under async), long-lived connection pools and HTTP clients, and strict typing that basedpyright's `recommended` mode actually enforces.
+This is a fully-typed, async-first, Rust-accelerated Python backend built for throughput and correctness. **Litestar** is the application framework, **msgspec** is the serialization/validation core (not Pydantic), **Granian** is the Rust HTTP server (not uvicorn/gunicorn), **SQLAlchemy 2.0 async over asyncpg** is the persistence layer (usually via Advanced Alchemy's repository/service layer), and the toolchain is the Astral trio plus DetachHead's checker — **uv**, **ruff**, and **basedpyright**. Optimize for: async everywhere (never block the event loop), msgspec `Struct`s and SQLAlchemy DTOs instead of hand-written serializers, eager relationship loading (lazy loading raises under async), long-lived connection pools and HTTP clients, precise type annotations that a checker verifies, and the modern stdlib idioms (`pathlib`, `zoneinfo`, `tomllib`, structured concurrency).
 
-The single biggest way agents write wrong-but-plausible code here is importing habits from FastAPI/Pydantic/Flask/Django. Concretely: reaching for `pydantic.BaseModel` where a `msgspec.Struct` belongs; running the app with `uvicorn`/`gunicorn` instead of Granian's `litestar run`; writing `session.query(...)` (legacy 1.x) instead of `select()` + `session.execute()`; accessing `obj.related` and triggering a lazy load that throws `MissingGreenlet`; instantiating `httpx.AsyncClient()` per request; and using `pip`/`poetry`/`black`/`isort`/`flake8`/`mypy` where `uv`/`ruff`/`basedpyright` are the stack's tools. Every section below shows the idiomatic path once and well.
+The single biggest way an agent writes wrong-but-plausible code here is by importing habits from FastAPI / Pydantic / Flask / Django, or from old Python. Get these reflexes right and most of the rest follows:
 
-## Stack snapshot (mid-2026)
+- Use `msgspec.Struct`, **not** `pydantic.BaseModel`, for request/response and internal models.
+- Run the app with `litestar run` + `GranianPlugin()`, **not** `uvicorn`/`gunicorn`.
+- Inject dependencies with `Provide(...)` in a `dependencies={}` mapping, **not** FastAPI's `Depends()`.
+- Query with `select()` + `session.execute()`/`session.scalars()`, **not** the legacy `session.query(...)`.
+- Return the struct/model and let the framework encode it — never call `.dict()` / `.model_dump()`.
+- Never access an unloaded relationship under async (`MissingGreenlet`); **eager-load**.
+- Never instantiate `httpx.AsyncClient()` per request; keep one long-lived client on `app.state`.
+- Use built-in generics + `X | None`; never `typing.List` / `Optional`.
+- Use `uv`/`ruff`/`basedpyright`; never `pip`/`poetry`/`black`/`isort`/`flake8`.
 
-- **Research date:** July 1, 2026
-- **Research basis:** current official docs, release notes, specifications, changelogs, and primary repositories.
+This is a capability reference. Every code block is copy-ready on the stack below. Version tags like `(Python 3.12)` mark the floor a feature needs; assume the floor is met.
 
-| Component | Current stable | Notes |
-|---|---|---|
-| Python | 3.14.x | Deferred annotations (PEP 649/749) on by default; free-threading officially supported (PEP 779) but opt-in; JIT still experimental |
-| Litestar | 2.24.0 | 2.x is current; 3.0 not yet stable |
-| Granian | 2.7.x | Default interface is `rsgi` |
-| litestar-granian | 0.15.x | First-party plugin |
-| msgspec | 0.21.x | Ships cp314 + free-threaded wheels |
-| SQLAlchemy | 2.0.x (2.0.51) | 2.1 still in beta — target 2.0 |
-| asyncpg | 0.31.x | PostgreSQL 9.5–18; cp314 wheels |
-| advanced-alchemy | 1.11.x | Repository/service layer for Litestar |
-| Alembic | 1.18.x | `async` and new `pyproject` templates |
-| structlog | 26.x | Python 3.14/3.15 support |
-| httpx | 0.28.x | 1.0 still pre-release |
-| ruff | 0.15.x | 2026 style guide since 0.15.0 (released 2026-02-03) |
-| uv | 0.11.x | PEP 735 dependency groups |
-| basedpyright | 1.39.x | `recommended` mode is its default |
+---
+
+## Stack snapshot
+
+- **Research basis:** current official docs, release notes, specifications, changelogs, and primary repositories (mid-2026).
+
+| Component | Current stable | Floor | Notes |
+|---|---|---|---|
+| Python | 3.14.x (3.14.6) | 3.14 | Deferred annotations (PEP 649/749) on by default; free-threading officially supported (PEP 779) but opt-in; JIT experimental |
+| Litestar | 2.24.0 | 2.x | Production-ready, rigorously typed, msgspec-based ASGI framework; 3.0 not yet stable |
+| Granian | 2.7.x | 2.x | Rust HTTP server (BSD-3); ASGI/RSGI/WSGI; HTTP/1.1 + HTTP/2; free-threaded (cp314t) wheels |
+| litestar-granian | 0.15.x | 0.15 | First-party `GranianPlugin` wiring Granian into the `litestar` CLI (Python ≥3.10) |
+| msgspec | 0.21.x | 0.19+ | JSON/MessagePack/YAML/TOML; `Struct` type; cp314 + free-threaded wheels |
+| SQLAlchemy | 2.0.x (2.0.51) | 2.0 | Target 2.0; 2.1 still beta |
+| asyncpg | 0.31.x | — | PostgreSQL 9.5–18; cp314 wheels |
+| advanced-alchemy | 1.11.x | — | Repository/service layer + Litestar plugin |
+| Alembic | 1.18.x | — | Async + `pyproject` templates |
+| structlog | 26.x | — | Structured logging |
+| httpx | 0.28.x | — | Async HTTP client; 1.0 still pre-release |
+| uv | 0.11.x | — | Packaging / project management (PEP 735 groups) |
+| ruff | 0.15.x | — | Lint + format; 2026 style guide since 0.15.0 |
+| basedpyright | 1.39.x | — | Type checker; `recommended` mode is its default |
+| mypy | 2.x | — | Mature alternative checker (2.0, May 2026: experimental parallel `--num-workers N`) |
+| pytest | 9.x | — | + `pytest-asyncio`; `hypothesis` for property tests |
+
+---
 
 ## Python 3.14 language baseline
 
 Assume the 3.14 floor. The features that change how you write code:
 
-**Deferred annotation evaluation (PEP 649/749, Python 3.14).** Annotations on functions, classes, and modules are no longer evaluated eagerly — they're stored in `__annotate__` functions and computed on demand. You no longer need to quote forward references or reach for `from __future__ import annotations`. That `__future__` import still works but is now redundant for most code; a critical exception in this stack is SQLAlchemy `Mapped[...]` models and Advanced Alchemy base modules, which introspect annotations at class-creation time — **do not** put `from __future__ import annotations` in model modules, but handlers/services/tests may use it freely. Use `annotationlib` (`get_annotations` with `Format.VALUE`/`FORWARDREF`/`STRING`) if you ever need to introspect annotations.
+### Deferred annotations (PEP 649 / PEP 749)
 
-**PEP 695 type parameters & the `type` statement (Python 3.12+, standard by 3.14).** Prefer the native generic syntax:
+Annotations on functions, classes, and modules are **no longer evaluated at definition time** — they are stored in a compiler-generated `__annotate__` function and computed lazily on first access. Forward references "just work"; you do **not** write `from __future__ import annotations` (that directive still works but is redundant and deprecated).
 
 ```python
-type UserId = int
-type JsonMap = dict[str, "JsonValue"]
+# Forward references need no quotes and no __future__ import.
+class Node:
+    def __init__(self, parent: Node | None, children: list[Node]) -> None:
+        self.parent = parent
+        self.children = children
+```
 
-def first[T](items: list[T]) -> T | None:
+Two runtime-resolution caveats that bite on this stack:
+
+- **Litestar builds signature models at startup by resolving annotations at runtime.** The injected types (a handler's `data` parameter, its return type, DI types) must be importable in module scope. Do **not** hide handler/DI types behind `if TYPE_CHECKING:` — the framework needs them at runtime and will raise `NameError`.
+- **SQLAlchemy `Mapped[...]` and Advanced Alchemy base modules introspect annotations at class-creation time.** Do **not** put `from __future__ import annotations` in model modules. Handlers/services/tests may use it freely, but it's redundant on 3.14.
+
+To introspect annotations at runtime, use the `annotationlib` module rather than reading `__annotations__` directly — it handles forward references via `Format.VALUE` / `Format.FORWARDREF` / `Format.STRING`:
+
+```python
+import annotationlib
+
+def process(items: list[int], limit: int = 10) -> bool: ...
+
+hints = annotationlib.get_annotations(process, format=annotationlib.Format.FORWARDREF)
+```
+
+### Template strings — t-strings (PEP 750)
+
+A `t"..."` literal looks like an f-string but evaluates to a `string.templatelib.Template`, **not** a `str`. It exposes the static string parts and interpolated values separately, so a library can sanitize before rendering — making injection-safe interpolation structurally possible.
+
+```python
+from string.templatelib import Template, Interpolation
+import html
+
+def html_escape(template: Template) -> str:
+    parts: list[str] = []
+    for item in template:
+        if isinstance(item, Interpolation):
+            parts.append(html.escape(str(item.value)))
+        else:  # static string segment
+            parts.append(item)
+    return "".join(parts)
+
+user = "<script>alert('xss')</script>"
+safe = html_escape(t"<p>Hello, {user}</p>")
+# "<p>Hello, &lt;script&gt;alert('xss')&lt;/script&gt;</p>"
+```
+
+Use t-strings when authoring a SQL/HTML/shell/logging boundary; use f-strings for ordinary formatting. A `Template` is **not** a `str` — do not return a t-string where a `str` is expected, and there is no backport (`t"..."` is a `SyntaxError` on 3.13 and earlier).
+
+### f-strings for everything else
+
+f-strings are the one true string-formatting mechanism. Never use `%` or `str.format()` in new code (the one exception is lazy logging arguments — see [Logging](#logging-structlog)).
+
+```python
+value, name, width = 42.12345, "widget", 8
+print(f"{name}: {value:.2f}")   # widget: 42.12
+print(f"{value=:.1f}")          # value=42.1   (self-documenting)
+print(f"{name:>{width}}")       # right-align in a computed width
+```
+
+### `except` without parentheses (PEP 758)
+
+Drop the parentheses around a tuple of exception types — but only when there is no `as` clause.
+
+```python
+try:
+    risky()
+except ValueError, KeyError:            # no parentheses needed
+    handle()
+except (OSError, TimeoutError) as exc:  # parentheses REQUIRED with `as`
+    log(exc)
+```
+
+### Free-threading, subinterpreters, JIT
+
+- **Free-threading (PEP 779)** is officially supported but **opt-in** via a separate `python3.14t` binary — not the default, and single-threaded code pays a ~5–10% penalty. Granian ships free-threaded wheels but its README warns that no-GIL support is "still experimental and highly discouraged in production," and that Granian "will refuse to start" if the GIL gets re-enabled on a free-threaded build. This async I/O-bound stack scales via the event loop and Granian workers, not threads — **do not** design around no-GIL in production.
+- **Subinterpreters (PEP 734)** land in the stdlib as `concurrent.interpreters` — a niche CPU-offload tool, not part of the request path.
+- **JIT** remains experimental and off by default. Do not rely on it.
+
+Error messages continue to sharpen (misspelled-keyword suggestions), the REPL has syntax highlighting and import autocompletion, and several stdlib CLIs emit color — all default behavior, nothing to configure.
+
+---
+
+## The type system
+
+Modern Python is gradually but seriously typed. Write annotations everywhere and run a checker in CI.
+
+### Built-in generics and unions — no `typing` imports for the basics
+
+```python
+# RIGHT
+def totals(rows: list[dict[str, int]]) -> tuple[int, int]: ...
+def find(key: str) -> int | None: ...          # not Optional[int]
+
+# WRONG — do not import these:
+# from typing import List, Dict, Tuple, Optional, Union
+```
+
+Use `list`, `dict`, `tuple`, `set`, `frozenset` directly as generics and `X | Y` / `X | None` for unions and optionals.
+
+### The `type` statement and PEP 695 generics
+
+Declare type parameters inline with brackets. Do not create `TypeVar` objects by hand.
+
+```python
+from collections.abc import Callable
+
+type UserId = int
+type Vector = list[float]
+type Result[T] = T | Exception
+type Handler[T, R] = Callable[[T], R]
+
+def first[T](items: list[T]) -> T | None:       # generic function
     return items[0] if items else None
 
-class Repository[ModelT]:
+class Stack[T]:                                  # generic class, no Generic[T] base
+    def __init__(self) -> None:
+        self._items: list[T] = []
+    def push(self, item: T) -> None:
+        self._items.append(item)
+
+def largest[T: (int, float)](values: list[T]) -> T:   # constrained
+    return max(values)
+
+class Repository[ModelT: "Entity"]:                    # upper bound
     def __init__(self, model: type[ModelT]) -> None:
         self.model = model
 ```
 
-**Modern typing idioms** you should default to: `X | None` unions (never `Optional[X]`), builtin generics (`list[str]`, `dict[str, int]`), `Self` for fluent/factory returns, `override` on overriding methods (basedpyright's `recommended` flags missing ones), and `TypeIs`/`TypeGuard` for narrowing.
+### `Self`, `override`, and structural typing
 
 ```python
-from typing import Self, override
+from typing import Self, override, Protocol, runtime_checkable
+
+class QueryBuilder:
+    def __init__(self) -> None:
+        self._conds: list[str] = []
+    def where(self, cond: str) -> Self:        # returns the concrete subclass type
+        self._conds.append(cond)
+        return self
 
 class Base:
-    @classmethod
-    def create(cls) -> Self:
-        return cls()
+    def handle(self) -> None: ...
 
-class Child(Base):
-    @override
-    def __repr__(self) -> str:
-        return "Child()"
+class Worker(Base):
+    @override                                  # checker errors if this doesn't override
+    def handle(self) -> None: ...
+
+@runtime_checkable
+class Readable(Protocol):                       # prefer Protocol over ABCs for "has these methods"
+    def read(self, size: int = -1, /) -> bytes: ...
 ```
 
-**Exception groups & `except*` (Python 3.11+).** Relevant for concurrent async code (`asyncio.TaskGroup` raises `ExceptionGroup`). Handle typed sub-groups:
+basedpyright's `recommended` mode flags missing `@override`. Use `TypeIs`/`TypeGuard` for narrowing.
+
+### TypedDict, Literal, Final, Annotated, typed `**kwargs`
 
 ```python
-try:
-    async with asyncio.TaskGroup() as tg:
-        tg.create_task(fetch_a())
-        tg.create_task(fetch_b())
-except* ValueError as eg:
-    for exc in eg.exceptions:
-        logger.warning("validation failed", error=str(exc))
-except* ConnectionError as eg:
-    ...
-```
-
-**t-strings / template strings (PEP 750, Python 3.14)** produce a `Template` object rather than a `str`, enabling safe custom interpolation (e.g. escaping) before rendering. Do not treat a t-string as a drop-in `str`; it is a distinct type consumed by a processor.
-
-**Free-threading (PEP 779) is officially supported in 3.14 but opt-in** via a separate `python3.14t` binary — it is not the default and single-threaded code pays a measurable penalty. The **JIT remains experimental**. Do not depend on either free-threading or the JIT in production defaults; this async I/O-bound stack scales via the event loop and Granian workers, not threads. Subinterpreters are now in the stdlib via `concurrent.interpreters` (PEP 734) — a niche tool, not part of the normal request path here.
-
-## Application construction & routing (Litestar 2.x)
-
-A Litestar app is a collection of route handlers, plugins, and layered config. Unlike FastAPI (a thin layer over Starlette), Litestar has no Starlette dependency and uses msgspec — not Pydantic — as its native data layer.
-
-```python
-from litestar import Litestar, get, post
-from litestar_granian import GranianPlugin
-
-@get("/health", sync_to_thread=False)
-async def health() -> dict[str, str]:
-    return {"status": "ok"}
-
-app = Litestar(
-    route_handlers=[health],
-    plugins=[GranianPlugin()],
+from typing import (
+    TypedDict, Required, NotRequired, ReadOnly, Literal, Final, Annotated, Unpack,
 )
+
+class UserPayload(TypedDict):
+    id: ReadOnly[int]                # checker forbids reassignment (PEP 705)
+    name: Required[str]
+    nickname: NotRequired[str]       # key may be absent
+
+Mode = Literal["r", "w", "a"]        # only these exact values
+MAX_RETRIES: Final = 3               # reassignment is a type error
+Port = Annotated[int, "TCP port 1-65535"]   # metadata for pydantic/FastAPI/msgspec/etc.
+
+class RequestOpts(TypedDict):
+    timeout: float
+    retries: NotRequired[int]
+
+def fetch(url: str, **opts: Unpack[RequestOpts]) -> bytes: ...   # typed **kwargs (PEP 692)
 ```
 
-Handlers are decorated with `@get`, `@post`, `@put`, `@patch`, `@delete` (imported from `litestar`). Return values are serialized by msgspec automatically. Use `sync_to_thread=False` on non-blocking sync handlers to silence the warning and avoid a needless threadpool hop; use `sync_to_thread=True` only for genuinely blocking sync work.
-
-**`Controller` classes** group related handlers under a shared path with shared dependencies/guards:
+### Checker-assisted development
 
 ```python
-from uuid import UUID
-from litestar import Controller, get, post, patch, delete
+from typing import assert_type
 
-class UserController(Controller):
-    path = "/users"
-    tags = ["users"]
-
-    @get()
-    async def list_users(self) -> list[UserRead]: ...
-
-    @post()
-    async def create_user(self, data: UserCreate) -> UserRead: ...
-
-    @get("/{user_id:uuid}")
-    async def get_user(self, user_id: UUID) -> UserRead: ...
-
-    @patch("/{user_id:uuid}")
-    async def update_user(self, user_id: UUID, data: UserUpdate) -> UserRead: ...
-
-    @delete("/{user_id:uuid}")
-    async def delete_user(self, user_id: UUID) -> None: ...
+x = first([1, 2, 3])
+assert_type(x, int | None)   # static assertion; checker errors on mismatch
+# reveal_type(x)             # checker prints inferred type; remove before commit
 ```
 
-**Path parameters are typed with converters** in the path string: `{user_id:uuid}`, `{item_id:int}`, `{name:str}`, `{date:date}`, `{price:float}`, `{path_val:path}`. The converter drives both parsing and OpenAPI schema. **`Router`** groups controllers/handlers under a prefix, and routers nest:
+---
 
-```python
-from litestar import Router
+## Data modeling: msgspec first
 
-api_v1 = Router(path="/api/v1", route_handlers=[UserController, OrderController])
-app = Litestar(route_handlers=[api_v1], plugins=[GranianPlugin()])
-```
-
-Litestar is **layered**: `dependencies`, `guards`, `middleware`, `before_request`, `after_response`, `exception_handlers`, and more can be set at app, router, controller, or handler level, with the most specific layer winning (except guards, which accumulate).
-
-## msgspec: the serialization & validation core
-
-msgspec replaces Pydantic in this stack. `msgspec.Struct` is a C-level slotted type that is dramatically faster than a Pydantic model — in msgspec author Jim Crist-Harif's published benchmark, "msgspec was roughly 6.4X faster for decode and 1.6X faster for encode" versus Pydantic v2, and per the official msgspec benchmarks, Struct operations run "roughly 5x to 60x faster than the alternatives" for common operations (Struct creation ~4x faster than standard classes/attrs/dataclasses and ~17x faster than Pydantic). Litestar validates request bodies and serializes responses through msgspec natively.
-
-**The sharp behavioral difference from Pydantic:** a `Struct` constructor does **not** validate. `User(name=123)` will happily build a wrong instance; mypy/basedpyright is expected to catch that statically. Validation happens only at the decode boundary — `msgspec.json.decode(data, type=User)` — which is exactly where untrusted input enters. Litestar wires that boundary for you.
+Litestar's serialization core **is** msgspec. Define request/response and internal models as `msgspec.Struct` by default. `Struct` is a C-level slotted type that is dramatically faster than the alternatives — per msgspec's benchmarks, "In benchmarks msgspec decodes and validates JSON faster than orjson can decode it alone," Struct operations run "roughly 5x to 60x faster than the alternatives," and versus Pydantic v2 the author measured "roughly 6.4X faster for decode and 1.6X faster for encode."
 
 ```python
 import msgspec
 from typing import Annotated
 from datetime import datetime
+from uuid import UUID
+
+# Reusable constrained type aliases via Annotated + Meta
+PositiveInt = Annotated[int, msgspec.Meta(gt=0)]
+Email = Annotated[str, msgspec.Meta(pattern=r"[^@]+@[^@]+\.[^@]+", max_length=254)]
+Slug = Annotated[str, msgspec.Meta(pattern=r"^[a-z0-9-]+$", max_length=100)]
 
 class UserCreate(msgspec.Struct, kw_only=True, forbid_unknown_fields=True):
-    name: Annotated[str, msgspec.Meta(min_length=1, max_length=64)]
-    email: Annotated[str, msgspec.Meta(pattern=r".+@.+\..+")]
+    email: Email
+    display_name: Annotated[str, msgspec.Meta(min_length=1, max_length=64)]
+    password: Annotated[str, msgspec.Meta(min_length=12)]
     age: Annotated[int, msgspec.Meta(ge=0, le=150)] | None = None
 
 class UserRead(msgspec.Struct, kw_only=True, omit_defaults=True):
-    id: str
-    name: str
+    id: UUID
     email: str
+    display_name: str
     created_at: datetime
 ```
 
-Key `Struct` config flags (set as class kwargs): `frozen=True` (immutable + hashable), `kw_only=True` (keyword-only init — recommended for readability and safe field ordering across inheritance), `omit_defaults=True` (skip default-valued fields when encoding — smaller payloads, faster), `forbid_unknown_fields=True` (reject unexpected keys on decode — use for request bodies), `rename="camel"` (emit camelCase JSON while keeping snake_case Python), and `tag`/`tag_field` for tagged unions.
+### Two behavioral rules that differ from Pydantic
 
-**Constraints go in `Annotated` with `msgspec.Meta`**, not in field definitions like Pydantic's `Field`. Reusable constrained aliases read well:
+- **The constructor does not validate.** `User(email=123)` builds a wrong instance happily — mypy/basedpyright is expected to catch that *statically* (the compensation for no runtime constructor validation). Validation runs only at the **decode boundary** (`msgspec.json.decode(data, type=User)`), which is exactly where untrusted input enters. Litestar wires that boundary for you. Constructing a struct directly does **not** run `Meta` constraints — for declarative "always validated" objects, decode through Litestar or `msgspec.convert`.
+- **Validation is strict, not coercive.** `{"age": "30"}` decoded into `age: int` raises `msgspec.ValidationError` — msgspec will not silently coerce `"30"` → `30`. This is a feature; do not "fix" it by loosening types. If you truly need coercion, pass `strict=False` on a decoder deliberately.
 
-```python
-PositiveInt = Annotated[int, msgspec.Meta(gt=0)]
-Slug = Annotated[str, msgspec.Meta(pattern=r"^[a-z0-9-]+$", max_length=100)]
-```
+### Struct config flags (set as class kwargs)
 
-**Tagged unions** (discriminated unions) — set a `tag` on each member; msgspec adds a discriminator field (default name `"type"`) and dispatches on decode:
+| Flag | Effect |
+|---|---|
+| `kw_only=True` | Keyword-only init; strongly recommended so field-order changes aren't breaking. **Does not inherit** — set on each struct. |
+| `frozen=True` | Pseudo-immutable + hashable; use for config/value objects. Update with `msgspec.structs.replace(obj, field=...)`, never mutate. |
+| `forbid_unknown_fields=True` | Reject unexpected keys on decode; use for strict inbound request contracts. |
+| `omit_defaults=True` | Drop default-valued fields on encode; smaller payloads, faster. |
+| `rename="camel"` | Emit/accept `camelCase` on the wire, keep `snake_case` in Python. Also `"kebab"`, `"pascal"`, `"upper"`, `"lower"`, or a mapping. |
+| `tag=` / `tag_field=` | Discriminator for tagged unions (below). |
+
+Constraints live in `Annotated[..., msgspec.Meta(...)]` (not Pydantic's `Field`): `gt/ge/lt/le`, `multiple_of`, `min_length/max_length`, `pattern` (unanchored `re.search`), `tz` for datetimes.
+
+### Tagged unions (discriminated unions)
+
+Set an explicit `tag=` on **every** member; msgspec adds a discriminator field (default `"type"`) and dispatches on decode. Omitting tags forces msgspec to try each variant in order — slow and ambiguous when fields overlap.
 
 ```python
 class Cat(msgspec.Struct, tag="cat"):
@@ -185,72 +303,185 @@ class Dog(msgspec.Struct, tag="dog"):
 Animal = Cat | Dog
 msgspec.json.decode(b'{"type":"cat","meows":3}', type=Animal)  # -> Cat(meows=3)
 ```
-Always tag every member of a union; an untagged union forces msgspec to try each variant and is ambiguous when fields overlap.
 
-**`msgspec.field()`** configures per-field defaults/renames: `field(default_factory=list)`, `field(name="userName")`. **`UNSET` / `msgspec.UNSET`** distinguishes "field absent" from "field explicitly null" — essential for PATCH semantics:
+### Encoding/decoding — reuse `Encoder`/`Decoder` on hot paths
+
+```python
+import msgspec
+
+# One-shot
+payload = msgspec.json.encode(user)                 # -> bytes
+user = msgspec.json.decode(payload, type=UserRead)  # validates
+
+# Reused (faster): build once, call many
+_decoder = msgspec.json.Decoder(list[UserRead])
+_encoder = msgspec.json.Encoder()
+users = _decoder.decode(raw_bytes)
+
+# MessagePack for internal/binary channels
+blob = msgspec.msgpack.encode(user)
+```
+
+### Other tools worth knowing
+
+- `msgspec.field(default_factory=list)` / `field(name="userName")` — per-field defaults/renames.
+- `msgspec.UNSET` / `UnsetType` — distinguish "field absent" from "explicit null" for PATCH semantics; unset fields are omitted on encode.
+- `msgspec.convert(obj, Type, from_attributes=True)` — coerce ORM rows / attribute objects into structs without a JSON round-trip (the right primitive for "SQLAlchemy row → response struct").
+- `msgspec.Raw` — defer decoding of a field (hold raw bytes, decode later).
+- `msgspec.structs.replace/asdict/astuple` — immutable update and conversion helpers.
+- `enc_hook` / `dec_hook` — support custom types.
+
+Do **not** reach for `.model_dump()`, `.dict()`, `BaseModel`, `Field(...)`, `@validator`, or `ConfigDict` — those are Pydantic and do not exist here.
 
 ```python
 from msgspec import UNSET, UnsetType
 
 class UserPatch(msgspec.Struct, kw_only=True):
-    name: str | UnsetType = UNSET
+    display_name: str | UnsetType = UNSET
     email: str | UnsetType = UNSET
 ```
 
-**Performance path:** for hot loops, build a reusable `Encoder`/`Decoder` once rather than calling the module-level functions repeatedly:
+### Decision table — which data type?
+
+| Use | When |
+|---|---|
+| `msgspec.Struct` | Default for all request/response models and internal data |
+| `@dataclass(slots=True, frozen=True, kw_only=True)` | Interop with stdlib/other libs; still works with Litestar DTOs; immutable value objects |
+| `TypedDict` | Loosely-structured dict-shaped data you don't want a class for |
+| `pydantic.BaseModel` | **Only** when integrating an existing Pydantic codebase |
+| Plain `dict[...]` return | Trivial handlers; loses schema richness |
+
+If you do use dataclasses, `field(default_factory=list)` is mandatory for mutable defaults — a bare `tags: list[str] = []` is the classic shared-mutable-default bug (dataclasses raise `ValueError` if you try).
+
+---
+
+## Application structure & routing (Litestar 2.x)
+
+A Litestar app is a collection of route handlers, plugins, and layered config. Unlike FastAPI (a thin layer over Starlette), Litestar has no Starlette dependency and uses msgspec as its native data layer. Compose the app from module-level handlers and `Controller` classes registered on a single `Litestar` object; prefer an **application-factory** so tests and the CLI build fresh instances.
 
 ```python
-decoder = msgspec.json.Decoder(UserCreate)
-encoder = msgspec.json.Encoder()
-user = decoder.decode(raw_bytes)
-payload = encoder.encode(user)
+# app/server.py
+from litestar import Litestar
+from litestar_granian import GranianPlugin
+
+from app.controllers.users import UserController
+from app.lifespan import db_lifespan
+from app.config import openapi_config
+
+def create_app() -> Litestar:
+    return Litestar(
+        route_handlers=[UserController],
+        plugins=[GranianPlugin()],
+        lifespan=[db_lifespan],
+        openapi_config=openapi_config,
+    )
+
+app = create_app()
 ```
 
-**Struct helpers:** `msgspec.structs.replace(obj, **changes)` (immutable update), `msgspec.structs.asdict(obj)` / `astuple(obj)`, and `msgspec.convert(obj, Type, from_attributes=True)` to coerce e.g. ORM rows into structs. **`msgspec.Raw`** defers decoding of a field (holds the raw bytes). Custom types are handled with `enc_hook`/`dec_hook`. Do not reach for `.model_dump()`, `.dict()`, `BaseModel`, `Field(...)`, `@validator`, or `ConfigDict` — those are Pydantic and do not exist here.
+Controllers group related routes under a common path and share dependencies, guards, and DTOs:
 
-## Data handling with DTOs
+```python
+# app/controllers/users.py
+from uuid import UUID
+from litestar import Controller, get, post, patch, delete
 
-Litestar's DTO system transforms between wire format and your domain objects, driven by `dto=` (inbound) and `return_dto=` (outbound) on handlers/controllers. Any type inheriting `AbstractDTO` works; the factories you'll use are `MsgspecDTO`, `DataclassDTO`, and — most importantly here — `SQLAlchemyDTO` (from `advanced_alchemy.extensions.litestar` / re-exported at `litestar.plugins.sqlalchemy`). The `SQLAlchemyDTO` lets you return ORM models directly from handlers without an intermediate schema.
+from app.models import User, UserCreate, UserUpdate
+from app.services import UserService
+
+class UserController(Controller):
+    path = "/users"
+    tags = ["users"]
+
+    @get()
+    async def list_users(self, users: UserService) -> list[User]:
+        return await users.list()
+
+    @get("/{user_id:uuid}")
+    async def get_user(self, user_id: UUID, users: UserService) -> User:
+        return await users.get(user_id)
+
+    @post()
+    async def create_user(self, data: UserCreate, users: UserService) -> User:
+        return await users.create(data)
+
+    @patch("/{user_id:uuid}")
+    async def update_user(self, user_id: UUID, data: UserUpdate, users: UserService) -> User:
+        return await users.update(user_id, data)
+
+    @delete("/{user_id:uuid}")
+    async def delete_user(self, user_id: UUID, users: UserService) -> None:
+        await users.delete(user_id)
+```
+
+Details agents get wrong:
+
+- **Path parameters are typed inline with converters:** `{user_id:uuid}`, `{item_id:int}`, `{name:str}`, `{date:date}`, `{price:float}`, `{path_val:path}`. The converter drives both parsing and the OpenAPI schema, and must match the handler parameter type. This is **not** FastAPI's `{user_id}` + separate annotation.
+- **Request bodies bind to the reserved `data` parameter** — you do not add `Body(...)`.
+- `@delete` handlers returning nothing default to `204 No Content`.
+- **The framework enforces typing** — an untyped return value raises at startup. Annotations are how the framework parses, validates, and documents your code.
+- **`Router`** groups controllers/handlers under a path prefix, and routers nest. Guards/dependencies declared on a router apply to everything beneath it.
+
+```python
+from litestar import Router
+api_v1 = Router(path="/api/v1", route_handlers=[UserController, OrderController])
+app = Litestar(route_handlers=[api_v1], plugins=[GranianPlugin()])
+```
+
+Litestar is **layered**: `dependencies`, `guards`, `middleware`, `before_request`, `after_response`, `exception_handlers`, and more can be set at app, router, controller, or handler level. The most specific layer wins — **except guards, which accumulate**.
+
+---
+
+## DTOs: reshaping models at the edge
+
+DTOs transform between wire format and your domain objects — excluding secret fields, renaming, partial updates — without hand-written conversion code. `dto=` governs the **inbound** parse; `return_dto=` governs the **outbound** serialize. Litestar ships `MsgspecDTO`, `DataclassDTO`, `PydanticDTO`, and — most important here — `SQLAlchemyDTO` (from `advanced_alchemy.extensions.litestar`, re-exported at `litestar.plugins.sqlalchemy`), which lets you return ORM models directly from handlers.
 
 ```python
 from datetime import datetime
 from typing import Annotated
 from sqlalchemy.orm import Mapped, mapped_column
 from litestar import post
-from litestar.dto import DTOConfig, dto_field
+from litestar.dto import DTOConfig, DTOData, dto_field
 from litestar.plugins.sqlalchemy import SQLAlchemyDTO
 from advanced_alchemy.base import UUIDAuditBase
 
 class User(UUIDAuditBase):
     __tablename__ = "user_account"
     name: Mapped[str]
-    password: Mapped[str] = mapped_column(info=dto_field("private"))       # never serialized
+    password: Mapped[str] = mapped_column(info=dto_field("private"))    # never serialized
     created_at: Mapped[datetime] = mapped_column(info=dto_field("read-only"))
 
-config = DTOConfig(
-    exclude={"password"},
-    rename_fields={"name": "userName"},
-    max_nested_depth=1,
-)
+config = DTOConfig(exclude={"password"}, rename_fields={"name": "userName"}, max_nested_depth=1)
 UserWriteDTO = SQLAlchemyDTO[Annotated[User, config]]
 
 @post("/users", dto=UserWriteDTO, return_dto=SQLAlchemyDTO[User])
 async def create_user(data: User) -> User:
-    return data
+    return await save(data)
 ```
 
-`DTOConfig` supports `include`/`exclude` (field sets), `rename_fields`, `rename_strategy` (`"camel"` etc.), `max_nested_depth`, and `partial=True` (all fields optional — for PATCH). Mark columns `dto_field("private")` (never read/write) or `dto_field("read-only")` (serialized out, ignored on input) directly on the model. For partial updates, type the handler `data` param as `DTOData[SomeDTO]` and call `.create_instance()` / `.update_instance(obj)`.
+- `DTOConfig` supports `include`/`exclude` (mutually exclusive; take dot-paths like `"address.street"`), `rename_fields`, `rename_strategy` (`"camel"` etc.), `max_nested_depth`, and `partial=True` (all fields optional — for PATCH).
+- Mark columns `dto_field("private")` (never read/write) or `dto_field("read-only")` (serialized out, ignored on input) directly on the model.
+- For **partial updates**, type the handler `data` param as `DTOData[SomeDTO]` and call `.create_instance()` / `.update_instance(obj)` / `.as_builtins()` — this gives you only the fields the client actually sent.
+- **If a DTO isn't adding value** (you're just returning a struct/model as-is), **don't use one** — return it directly and let msgspec encode. DTOs earn their keep when input and output shapes diverge.
+
+---
 
 ## Dependency injection
 
-Litestar's DI is pytest-inspired: named providers wrapped in `Provide`, injected by matching parameter name. Providers may be sync or async, and are declared at any layer.
+DI is a named mapping of `Provide(callable)` entries, resolved by matching the dependency **name** to a handler parameter name — pytest-inspired, not FastAPI's `Depends()`.
 
 ```python
 from litestar import Litestar, get
 from litestar.di import Provide
+from collections.abc import AsyncGenerator
+from sqlalchemy.ext.asyncio import AsyncSession
+
+async def provide_db_session(state) -> AsyncGenerator[AsyncSession, None]:
+    async with state.sessionmaker() as session:
+        yield session  # teardown runs after the response
 
 async def provide_user_service(db_session: AsyncSession) -> UserService:
-    return UserService(session=db_session)
+    return UserService(session=db_session)   # dependencies nest by name
 
 @get("/users/{user_id:uuid}")
 async def get_user(user_id: UUID, user_service: UserService) -> UserRead:
@@ -258,34 +489,45 @@ async def get_user(user_id: UUID, user_service: UserService) -> UserRead:
 
 app = Litestar(
     route_handlers=[get_user],
-    dependencies={"user_service": Provide(provide_user_service)},
+    dependencies={
+        "db_session": Provide(provide_db_session),
+        "user_service": Provide(provide_user_service),
+        "settings": Provide(get_settings, use_cache=True),
+    },
 )
 ```
 
-Dependencies **nest** — a provider can itself declare dependencies by name, as `provide_user_service` does with `db_session`. By default a dependency is invoked once per request even without caching. `Provide(fn, use_cache=True)` memoizes the return across the app/connection lifetime (no kwargs-aware LRU — use it for expensive, argument-independent singletons like a config object or a shared client). For sync providers that don't block, pass `sync_to_thread=False` to avoid the threadpool. Override a dependency at a more specific layer simply by re-declaring the same name; unlike guards, dependencies override rather than accumulate.
+- **Scopes are layered:** declare `dependencies={}` on app, `Router`, `Controller`, or handler. A dependency is visible only at and below where it's declared; lower layers **override** higher ones by name (unlike guards, which accumulate).
+- **Dependencies nest** — a provider can declare its own dependencies by name.
+- **Generator dependencies** provide setup/teardown — `yield` the resource, clean up after. This is the idiomatic DB-session/connection pattern.
+- `Provide(fn, use_cache=True)` memoizes the return across the request/connection (no kwargs-aware LRU — use it for expensive, argument-independent singletons like config or a shared client).
+- `sync_to_thread=` applies to sync providers (see [Concurrency](#concurrency-sync-vs-async-and-where-work-runs)). Passing the callable directly (`dependencies={"x": some_callable}`) is allowed when you don't need `Provide`'s options.
+
+---
 
 ## SQLAlchemy 2.0 async + asyncpg
 
-Use the 2.0 style exclusively: `select()` statements executed through an `AsyncSession`. The legacy `session.query(...)` Query API is 1.x and must not be used.
+Use the 2.0 style exclusively: `select()` statements executed through an `AsyncSession`. The legacy `session.query(...)` API is 1.x and must not be used.
 
-**Engine & session.** One engine per process; short-lived sessions per unit of work; `expire_on_commit=False` is effectively mandatory under async (otherwise attributes expire after commit and re-accessing them triggers a lazy load that raises).
+### Engine & session
+
+One engine per process; short-lived sessions per unit of work. **`expire_on_commit=False` is effectively mandatory under async** — otherwise attributes expire after commit and re-accessing them triggers a lazy load that raises.
 
 ```python
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 
 engine = create_async_engine(
     "postgresql+asyncpg://app:pwd@localhost:5432/app",
-    pool_size=10,
-    max_overflow=20,
-    pool_pre_ping=True,
-    pool_recycle=1800,
+    pool_size=10, max_overflow=20, pool_pre_ping=True, pool_recycle=1800,
 )
 async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 ```
 
-The `postgresql+asyncpg://` URL selects the asyncpg driver, which MagicStack benchmarks as, on average, "5x faster than psycopg3" — the correct default for this stack. psycopg3 async (`postgresql+psycopg://`) is the adjacent alternative but not the default here. When running behind **pgbouncer in transaction/statement pooling mode**, or on serverless, disable SQLAlchemy's pool with `poolclass=NullPool` and disable asyncpg's prepared-statement cache to avoid cross-connection statement collisions.
+The `postgresql+asyncpg://` URL selects asyncpg, which MagicStack benchmarks as, on average, "5x faster than psycopg3" — the correct default. psycopg3 async (`postgresql+psycopg://`) is the adjacent alternative but not the default here. Behind **pgbouncer in transaction/statement pooling mode**, or on serverless, disable SQLAlchemy's pool with `poolclass=NullPool` and disable asyncpg's prepared-statement cache to avoid cross-connection statement collisions.
 
-**Modern declarative models** use `Mapped[...]` + `mapped_column()`; relationships are typed `Mapped[list["Child"]]` / `Mapped["Parent"]`. Include `AsyncAttrs` on the base so you have an escape hatch for awaited lazy loads.
+### Declarative models
+
+`Mapped[...]` + `mapped_column()`; relationships typed `Mapped[list["Child"]]` / `Mapped["Parent"]`. Include `AsyncAttrs` on the base as an escape hatch for awaited lazy loads. `Mapped[str]` reads as `str` on an instance, so basedpyright needs no casts for attribute access.
 
 ```python
 from datetime import datetime
@@ -311,24 +553,22 @@ class Book(Base):
     author: Mapped[Author] = relationship(back_populates="books")
 ```
 
-**Querying** uses `select()` + `session.execute()`/`session.scalars()`:
+### Querying
 
 ```python
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 async with async_session() as session:
-    stmt = (
-        select(Author)
-        .where(Author.name == "Ada")
-        .options(selectinload(Author.books))
-    )
+    stmt = select(Author).where(Author.name == "Ada").options(selectinload(Author.books))
     author = (await session.scalars(stmt)).one_or_none()
 ```
 
 Use `.scalar_one()` (exactly one, else raises), `.scalar_one_or_none()`, or `session.scalars(...).all()`.
 
-**The async lazy-loading rule is the number-one gotcha.** Accessing an unloaded relationship or an expired attribute outside an awaitable context raises `MissingGreenlet`. You must eager-load. Strategy choice:
+### The async lazy-loading rule (the #1 gotcha)
+
+Accessing an unloaded relationship or expired attribute outside an awaitable context raises `MissingGreenlet`. You must eager-load.
 
 | Strategy | Emits | Use when |
 |---|---|---|
@@ -337,33 +577,25 @@ Use `.scalar_one()` (exactly one, else raises), `.scalar_one_or_none()`, or `ses
 | `subqueryload` | Correlated subquery | Legacy; prefer `selectinload` |
 | `lazy="raise"` | Raises on access | Default guard to catch accidental N+1 at dev time |
 
-The escape hatch when you genuinely need one lazy attribute: `await obj.awaitable_attrs.books` (requires `AsyncAttrs`). For running sync ORM code inside async, use `await session.run_sync(fn)`.
+Escape hatch for a single lazy attribute: `await obj.awaitable_attrs.books` (requires `AsyncAttrs`). To run sync ORM code inside async: `await session.run_sync(fn)`.
 
-**Transactions** — wrap writes in `async with session.begin()` for an automatic commit/rollback boundary:
+### Transactions, bulk/upsert, PostgreSQL types
 
 ```python
+# Transaction: automatic commit/rollback boundary
 async with async_session() as session, session.begin():
     session.add(Author(name="Grace"))
-    # commits on clean exit, rolls back on exception
-```
 
-**Bulk / upsert** use `insert().returning()` and the PostgreSQL dialect's `on_conflict_do_update`:
-
-```python
+# Bulk insert + upsert with RETURNING
 from sqlalchemy.dialects.postgresql import insert
-
 stmt = (
-    insert(Author)
-    .values([{"name": "A"}, {"name": "B"}])
+    insert(Author).values([{"name": "A"}, {"name": "B"}])
     .on_conflict_do_update(index_elements=["name"], set_={"name": insert.excluded.name})
     .returning(Author.id)
 )
 ids = (await session.scalars(stmt)).all()
-```
 
-**PostgreSQL-specific types** — `JSONB`, `ARRAY` from `sqlalchemy.dialects.postgresql`:
-
-```python
+# PostgreSQL-specific column types
 from sqlalchemy.dialects.postgresql import JSONB, ARRAY
 from sqlalchemy import Integer, String
 
@@ -375,13 +607,13 @@ class Event(Base):
     scores: Mapped[list[int]] = mapped_column(ARRAY(Integer))
 ```
 
-`Mapped[]` typing is what makes basedpyright understand your columns as their Python types — `Mapped[str]` reads as `str` on an instance, so no casts are needed for attribute access.
+---
 
-## Advanced Alchemy: repositories, services & the Litestar plugin
+## Advanced Alchemy: repositories, services & the plugin
 
-Advanced Alchemy is the Litestar team's official SQLAlchemy companion and the idiomatic persistence layer for this stack. It provides audit-ready base classes, generic async repositories/services, and the `SQLAlchemyPlugin` that wires session dependency injection and transaction handling into Litestar. Install via `litestar[sqlalchemy]` or `advanced-alchemy` directly.
+Advanced Alchemy is the Litestar team's official SQLAlchemy companion and the idiomatic persistence layer here — audit-ready base classes, generic async repositories/services, and the `SQLAlchemyPlugin` that wires session DI and transaction handling into Litestar. Install via `litestar[sqlalchemy]` or `advanced-alchemy`.
 
-**Base classes** (pick per primary-key strategy): `UUIDBase`/`UUIDAuditBase` (UUID PK; audit adds `created_at`/`updated_at`), `UUIDv7Base`/`UUIDv7AuditBase`, `BigIntBase`/`BigIntAuditBase`, `NanoIDBase`. Default to `UUIDAuditBase` unless you have a reason not to. **Note:** model modules must **not** use `from __future__ import annotations` because `Mapped[...]` is introspected at class-creation.
+**Base classes** (by PK strategy): `UUIDBase`/`UUIDAuditBase`, `UUIDv7Base`/`UUIDv7AuditBase`, `BigIntBase`/`BigIntAuditBase`, `NanoIDBase`. Audit variants add `created_at`/`updated_at`. Default to `UUIDAuditBase`. **Model modules must not use `from __future__ import annotations`** (Mapped introspection).
 
 ```python
 from datetime import date
@@ -403,26 +635,17 @@ class Book(UUIDAuditBase):
     author: Mapped[Author] = relationship(back_populates="books", lazy="joined", innerjoin=True)
 ```
 
-**Repository** — generic CRUD, pagination, filtering, optimized bulk ops derived from the model:
+**Repository** — generic CRUD, pagination, filtering, dialect-aware bulk ops with auto-detected RETURNING: `get`, `get_one`, `get_one_or_none`, `list`, `list_and_count`, `add`, `add_many`, `update`, `upsert`, `delete`, `delete_many`.
 
 ```python
 from advanced_alchemy.repository import SQLAlchemyAsyncRepository
+from advanced_alchemy.service import SQLAlchemyAsyncRepositoryService
 
 class AuthorRepository(SQLAlchemyAsyncRepository[Author]):
     model_type = Author
-```
-
-You get `get`, `get_one`, `get_one_or_none`, `list`, `list_and_count`, `add`, `add_many`, `update`, `upsert`, `delete`, `delete_many` for free, with dialect-aware bulk operations and RETURNING support auto-detected.
-
-**Service** layer wraps a repository and handles DTO↔model transformation and lifecycle hooks:
-
-```python
-from advanced_alchemy.service import SQLAlchemyAsyncRepositoryService
 
 class AuthorService(SQLAlchemyAsyncRepositoryService[Author]):
-    class Repo(SQLAlchemyAsyncRepository[Author]):
-        model_type = Author
-    repository_type = Repo
+    repository_type = AuthorRepository
 ```
 
 **Plugin wiring** provides the `db_session` dependency and configures the engine:
@@ -437,7 +660,7 @@ alchemy = SQLAlchemyPlugin(
     config=SQLAlchemyAsyncConfig(
         connection_string="postgresql+asyncpg://app:pwd@localhost/app",
         session_config=AsyncSessionConfig(expire_on_commit=False),
-        create_all=False,  # use Alembic for schema, not create_all, in production
+        create_all=False,  # use Alembic for schema in production, not create_all
     )
 )
 app = Litestar(route_handlers=[...], plugins=[alchemy])
@@ -445,91 +668,178 @@ app = Litestar(route_handlers=[...], plugins=[alchemy])
 
 Then inject `db_session: AsyncSession` (or a provided service) into handlers. Advanced Alchemy also ships a UTC `DateTimeUTC` type, a database-agnostic JSON type (JSONB on PostgreSQL), `EncryptedString`, and a `FileObject` type with fsspec/obstore backends.
 
-## Granian + litestar-granian: the server
+---
 
-Granian is "A Rust HTTP server for Python applications built on top of the Hyper crate" that runs WSGI, ASGI, and its own **RSGI** protocol, with native HTTP/1.1 + HTTP/2. It is the modern replacement for the uvicorn/gunicorn combination, explicitly designed to "avoid the usual Gunicorn + uvicorn + http-tools dependency composition": single binary, native HTTP/2 without extra libraries, lower memory, and higher throughput. RSGI avoids the per-request ASGI scope-dict allocations by passing a Rust-backed object; Litestar has first-class RSGI support. Granian's default interface is `rsgi` (`--interface [asgi|asginl|rsgi|wsgi]`, `GRANIAN_INTERFACE`, default `rsgi`).
+## Concurrency: sync vs async, and where work runs
 
-**Do not reach for uvicorn or gunicorn.** In this stack the app is launched by `litestar run`, and the `litestar-granian` plugin makes that command drive Granian instead of uvicorn — same CLI, same lifespan/signal/reload integration.
+Choose the model by workload: **async** for I/O-bound concurrency (the default here), **threads** for blocking I/O, **subinterpreters/processes** for CPU-bound isolation.
+
+### The correctness rules
+
+- **`async def` handlers/providers must never call blocking I/O.** Granian runs each worker on an asyncio event loop; a blocking DB/HTTP/file call starves it and stalls the whole worker. Use async drivers (`asyncpg`, async SQLAlchemy, `httpx.AsyncClient`).
+- **Synchronous handlers/providers require an explicit `sync_to_thread` decision.** A blocking sync function must be `sync_to_thread=True` (Litestar runs it in a thread pool). A genuinely non-blocking sync function (pure CPU, fast, no I/O) should be `sync_to_thread=False`. Omitting it for a sync callable raises a warning — deliberately; make the choice explicit.
+
+```python
+from litestar import get
+
+@get("/compute", sync_to_thread=False)   # fast, CPU-only, non-blocking
+def compute() -> int:
+    return sum(range(1000))
+
+@get("/report", sync_to_thread=True)      # blocking library call -> thread pool
+def report() -> bytes:
+    return legacy_blocking_render()
+```
+
+### asyncio with structured concurrency
+
+Use `asyncio.TaskGroup`, not bare `gather`. A TaskGroup awaits all tasks on block exit and, if any fails, cancels the siblings and raises an `ExceptionGroup`.
+
+```python
+import asyncio
+
+async def fetch_all(client, urls: list[str]) -> list[bytes]:
+    async with asyncio.TaskGroup() as tg:
+        tasks = [tg.create_task(fetch(client, u)) for u in urls]
+    return [t.result() for t in tasks]     # reached only if all succeeded
+
+async def with_deadline() -> None:
+    try:
+        async with asyncio.timeout(5.0):    # cancels on timeout
+            await slow_operation()
+    except TimeoutError:
+        log("timed out")
+```
+
+Handle grouped failures with `except*`:
+
+```python
+try:
+    async with asyncio.TaskGroup() as tg:
+        tg.create_task(worker_a())
+        tg.create_task(worker_b())
+except* ValueError as eg:
+    for exc in eg.exceptions:
+        logger.warning("validation failure", error=str(exc))
+except* ConnectionError as eg:
+    log(f"{len(eg.exceptions)} connection failures")
+```
+
+Never `await` sequentially when you meant concurrency, never swallow `CancelledError`, and hold a reference to fire-and-forget tasks (the loop keeps only weak references).
+
+### CPU-bound offload
+
+For CPU-bound work, offload rather than block the loop: `InterpreterPoolExecutor` (PEP 734 subinterpreters — isolated state, "isolation of processes, efficiency of threads") or `ProcessPoolExecutor` (highest isolation, IPC cost). Free-threading could change this, but it's experimental — scaling here is by Granian **workers** (processes), not threads.
+
+| Workload | Use |
+|---|---|
+| Many network/disk I/O ops | `asyncio` + `TaskGroup` (the default path) |
+| Blocking I/O in a sync handler | `sync_to_thread=True` (Litestar thread pool) |
+| CPU-bound, want isolation | `InterpreterPoolExecutor` |
+| CPU-bound, heavy/legacy libs | `ProcessPoolExecutor` |
+
+---
+
+## Serving with Granian via litestar-granian
+
+Granian is a Rust HTTP server ("built on top of the Hyper crate") running WSGI, ASGI, and its own RSGI protocol, with native HTTP/1.1 + HTTP/2 — the modern replacement for the uvicorn/gunicorn combination. It's a single binary with native HTTP/2, lower memory, and higher throughput, avoiding "the usual Gunicorn + uvicorn + http-tools dependency composition."
+
+Add `GranianPlugin()` and the standard `litestar run` command launches Granian instead of Uvicorn — the plugin owns the server lifecycle (lifespan, signal handling, dev-reload). **Do not** run the bare `granian` CLI against a Litestar app when using the plugin, and never hand-roll a `uvicorn`/`gunicorn` invocation.
 
 ```python
 from litestar import Litestar
 from litestar_granian import GranianPlugin
-
 app = Litestar(route_handlers=[...], plugins=[GranianPlugin()])
 ```
 
 ```bash
-# Dev, with autoreload
-litestar run --reload
-
-# Production: match workers to cores, bind publicly
-litestar run --host 0.0.0.0 --port 8000 --workers 8
+litestar run --reload                                   # dev, autoreload on
+litestar run --host 0.0.0.0 --port 8000 --workers 8     # production
 ```
 
-For async (ASGI/RSGI) workloads use runtime-threaded mode; scaling is driven by the number of event loops (workers), not blocking threads. Set worker count to CPU cores; set backpressure limits in production so traffic spikes don't cause unbounded queuing and OOM. The cardinal rule: **never do blocking I/O inside an `async def` handler** — a blocking DB or HTTP call starves Granian's event loop and stalls the worker. Prefer the plugin over invoking the bare `granian` CLI for Litestar apps, so the server lifecycle stays wired to Litestar.
+`GranianPlugin()` takes no config object; tuning is driven through `litestar` CLI flags and Granian's `GRANIAN_*` env vars. Key options:
 
-## Middleware, guards & authentication
+| Option | Values / default | Guidance |
+|---|---|---|
+| `--interface` | `asgi\|asginl\|rsgi\|wsgi` (Granian default `rsgi`) | **When configuring Granian manually, use `asgi` — it is always correct for a Litestar app.** The plugin path manages this for you. Litestar has RSGI support (which avoids per-request ASGI scope-dict allocations); only pin `rsgi` once you've confirmed it works end-to-end for your Litestar version. |
+| `--http` | `auto\|1\|2` (default `auto`) | Leave `auto` unless you must pin. Pure HTTP/2 breaks HTTP/1.1 clients. |
+| `--workers` | int ≥1 (default 1) | Match CPU-core count; in k8s/Docker prefer **1 worker per container** and scale replicas. |
+| `--runtime-mode` | `auto\|mt\|st` (default `auto`) | `st` = N single-threaded Rust runtimes; `mt` = one multi-threaded. Leave `auto` unless benchmarking. |
+| `--runtime-threads` | int ≥1 (default 1) | Increase for many concurrent websockets or heavy HTTP/2. |
+| `--loop` | `auto\|asyncio\|rloop\|uvloop\|winloop` (default `auto`) | `uvloop` is the common fast choice on Linux/macOS. |
+| `--ssl-certificate` / `--ssl-keyfile` | file paths | Terminate TLS at Granian or a load balancer; keyfile is PKCS#8 only. |
 
-**Middleware** uses the ASGI factory pattern (a callable taking the next ASGI app and returning an ASGI app) or `AbstractMiddleware`; register with `DefineMiddleware` for arguments. Middleware runs in declaration order and can be layered.
+Do **not** size Granian with Gunicorn/Uvicorn rules of thumb — its Rust runtime + backpressure architecture differs. Granian applies backpressure at the per-worker accept loop; behind a reverse proxy with many keep-alive connections, ensure backpressure exceeds expected concurrency. As DeployHQ's 2026 guide notes, "Granian's Rust-based I/O shows the largest gains in connection-heavy scenarios with minimal application logic. Once your app does real work — database queries, template rendering, JSON serialization — the I/O layer stops being the bottleneck." The cardinal rule stands: **never do blocking I/O inside an `async def` handler.**
+
+---
+
+## Auth: JWT backends and guards
+
+Authentication (who you are) uses a JWT backend; authorization (what you may do) uses guards. Keep them separate.
 
 ```python
-from litestar.middleware import AbstractMiddleware
-from litestar.types import Receive, Scope, Send
+import secrets
+from dataclasses import dataclass
+from litestar import Litestar, Request, get, post, Response
+from litestar.connection import ASGIConnection
+from litestar.datastructures import State
+from litestar.security.jwt import JWTAuth, Token
 
-class TimingMiddleware(AbstractMiddleware):
-    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        # ... measure ...
-        await self.app(scope, receive, send)
+@dataclass
+class User:
+    id: str
+    is_admin: bool = False
+
+async def retrieve_user_handler(token: Token, connection: ASGIConnection) -> User | None:
+    return await load_user(token.sub)
+
+jwt_auth = JWTAuth[User](
+    token_secret=secrets.token_hex(),      # load from environment in production
+    retrieve_user_handler=retrieve_user_handler,
+    exclude=["/login", "/schema"],         # public paths
+)
+
+@post("/login")
+async def login(data: User) -> Response[User]:
+    return jwt_auth.login(identifier=str(data.id), response_body=data)
+
+@get("/me")
+async def me(request: Request[User, Token, State]) -> User:
+    return request.user   # populated by the middleware
+
+app = Litestar(route_handlers=[login, me], on_app_init=[jwt_auth.on_app_init])
 ```
 
-**Guards** are callables `(connection, handler) -> None` that authorize a request, raising `NotAuthorizedException`/`PermissionDeniedException` on failure. They accumulate across layers (all guards on the path run).
+Register via `on_app_init=[jwt_auth.on_app_init]` — it injects the middleware and OpenAPI security scheme. `request.user`/`request.auth` are set from the token. Use `JWTCookieAuth` for HttpOnly-cookie transport, or `OAuth2PasswordBearerAuth` for the OAuth2 password flow; subclass `AbstractAuthenticationMiddleware` for lower-level needs.
+
+**Guards** are cumulative callables `(connection, handler) -> None` that authorize and raise on failure. They **stack** across layers (app → router → controller → handler) — unlike dependencies, they combine rather than override.
 
 ```python
 from litestar.connection import ASGIConnection
 from litestar.handlers.base import BaseRouteHandler
 from litestar.exceptions import NotAuthorizedException
 
-def require_admin(connection: ASGIConnection, handler: BaseRouteHandler) -> None:
+def admin_guard(connection: ASGIConnection, _: BaseRouteHandler) -> None:
     if not getattr(connection.user, "is_admin", False):
         raise NotAuthorizedException()
+
+@post("/admin/users", guards=[admin_guard])
+async def create_user(data: User) -> User: ...
 ```
 
-**JWT authentication** ships in `litestar.security.jwt`. Construct a `JWTAuth` (header bearer) or `JWTCookieAuth` / `OAuth2PasswordBearerAuth`, and register via `on_app_init`. `retrieve_user_handler` maps a decoded token to your user object, which becomes `request.user`; `request.auth` holds the `Token`.
+Built-in `CORSConfig`, `CSRFConfig`, `RateLimitConfig`, `CompressionConfig`, and `AllowedHostsConfig` cover the standard cross-cutting concerns and are passed to `Litestar(...)`.
 
-```python
-from litestar import Litestar, post, Response
-from litestar.connection import ASGIConnection
-from litestar.security.jwt import JWTAuth, Token
+---
 
-async def retrieve_user_handler(token: Token, connection: ASGIConnection) -> User | None:
-    return await load_user(token.sub)
+## Middleware, lifespan, state & stores
 
-jwt_auth = JWTAuth[User](
-    retrieve_user_handler=retrieve_user_handler,
-    token_secret="...",           # load from environment
-    exclude=["/login", "/schema"],
-)
-
-@post("/login")
-async def login(data: LoginData) -> Response[User]:
-    user = await authenticate(data)
-    return jwt_auth.login(identifier=str(user.id), token_extras={"email": user.email}, response_body=user)
-
-app = Litestar(route_handlers=[login], on_app_init=[jwt_auth.on_app_init])
-```
-
-For lower-level needs subclass `AbstractAuthenticationMiddleware`. Built-in `CORSConfig`, `CSRFConfig`, `RateLimitConfig`, `CompressionConfig`, and `AllowedHostsConfig` cover the standard cross-cutting concerns and are passed to `Litestar(...)`.
-
-## Lifecycle, state, exceptions & responses
-
-**Lifespan** for setup/teardown of long-lived resources (HTTP clients, pools) uses an async context manager; store handles on `app.state`:
+**Lifespan** — manage engines/pools/HTTP clients with an async context manager; it enters on startup and exits on shutdown (multiple managers exit in inverse order). Store handles on `app.state`.
 
 ```python
 from contextlib import asynccontextmanager
 from collections.abc import AsyncGenerator
 import httpx
 from litestar import Litestar
-from litestar.datastructures import State
 
 @asynccontextmanager
 async def lifespan(app: Litestar) -> AsyncGenerator[None, None]:
@@ -542,24 +852,48 @@ async def lifespan(app: Litestar) -> AsyncGenerator[None, None]:
 app = Litestar(route_handlers=[...], lifespan=[lifespan])
 ```
 
-Inject app state into a handler by typing a `state: State` parameter. There are also `on_startup`/`on_shutdown` hooks and `before_request`/`after_request`/`after_response` hooks at every layer.
+Inject app state via a `state: State` parameter. Use it sparingly for connections/config, not as a mutable request cache. There are also `on_startup`/`on_shutdown` and `before_request`/`after_request`/`after_response` hooks at every layer.
 
-**Exception handling** maps exception types to handlers via `exception_handlers=`; raise `HTTPException` subclasses (`NotFoundException`, `ValidationException`, `NotAuthorizedException`, etc.) for standard responses.
+**Middleware** — Litestar ships CORS, CSRF, compression, rate-limit, session, and logging middleware configured via config objects. Prefer these and guards over hand-rolled ASGI middleware; when you must, use the ASGI factory pattern or `AbstractMiddleware` and register with `DefineMiddleware` for arguments.
 
 ```python
-from litestar import Request, Response
+from litestar.middleware import AbstractMiddleware
+from litestar.types import Receive, Scope, Send
 
-def handle_domain_error(request: Request, exc: DomainError) -> Response:
-    return Response({"detail": str(exc)}, status_code=422)
-
-app = Litestar(route_handlers=[...], exception_handlers={DomainError: handle_domain_error})
+class TimingMiddleware(AbstractMiddleware):
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        await self.app(scope, receive, send)
 ```
 
-**Response types** beyond plain return values: `Response` (explicit status/headers/cookies), `Redirect`, `File`, `Stream` (async iterator), `ServerSentEvent`, and `Template`. Background work runs via `BackgroundTask`/`BackgroundTasks` attached to a response.
+**Stores** (`litestar.stores`) are the async key/value abstraction backing sessions, response caching, and rate limiting — `MemoryStore`, `FileStore`, `RedisStore`. Register named stores and point features at them; cache a handler's response with `@get(..., cache=10)` (seconds) or `cache=True`.
 
 ```python
-from litestar import get
+from litestar.stores.redis import RedisStore
+from litestar.config.response_cache import ResponseCacheConfig
+
+app = Litestar(
+    stores={"redis": RedisStore.with_client(url="redis://localhost:6379")},
+    response_cache_config=ResponseCacheConfig(store="redis"),
+)
+```
+
+`RedisStore` namespaces keys under `LITESTAR` and its `delete_all` is namespace-scoped and safe — never issue a global `FLUSHALL`.
+
+---
+
+## Responses, errors & background tasks
+
+Return a value and the framework encodes it with the right content type from your annotation. Reach for explicit `Response`/`Stream`/`File`/`Redirect`/`ServerSentEvent`/`Template` only when you need headers, cookies, status, or streaming.
+
+```python
+from litestar import get, Response
+from litestar.background_tasks import BackgroundTask
 from litestar.response import Stream, ServerSentEvent
+
+@get("/greet")
+async def greet(name: str) -> Response[dict[str, str]]:
+    return Response({"hello": name}, headers={"X-Trace": "1"},
+                    background=BackgroundTask(log_greeting, name))
 
 @get("/download")
 async def download() -> Stream:
@@ -575,9 +909,31 @@ async def events() -> ServerSentEvent:
     return ServerSentEvent(publisher())
 ```
 
+**Errors** — raise `HTTPException` or subclasses (`NotFoundException`, `NotAuthorizedException`, `PermissionDeniedException`, `ValidationException`). They serialize to a structured JSON body (`status_code`, `detail`, `extra`). Customize with an `exception_handlers={}` mapping (by status code or exception class) at any layer.
+
+```python
+from litestar import Request, Response
+from litestar.exceptions import NotFoundException
+
+@get("/users/{user_id:uuid}")
+async def get_user(user_id: UUID, users: UserService) -> User:
+    if (user := await users.find(user_id)) is None:
+        raise NotFoundException(detail=f"user {user_id} not found")
+    return user
+
+def handle_domain_error(request: Request, exc: DomainError) -> Response:
+    return Response({"detail": str(exc)}, status_code=422)
+
+app = Litestar(route_handlers=[...], exception_handlers={DomainError: handle_domain_error})
+```
+
+Background tasks run after the response is sent; use `BackgroundTasks([...], run_in_task_group=True)` to run several concurrently.
+
+---
+
 ## OpenAPI
 
-Litestar generates an OpenAPI 3.1.0 schema automatically from your handler signatures and msgspec/SQLAlchemy types. Configure via `OpenAPIConfig`. In Litestar 2.x several UI renderers are available and can be enabled by adding render plugins; the schema JSON is served at `/schema/openapi.json` and UIs under `/schema/*`.
+Litestar auto-generates an OpenAPI 3.1.0 schema from handler signatures and msgspec/SQLAlchemy types. The JSON is served at `/schema/openapi.json` and UIs under `/schema/*`. Scalar is the project's preferred UI (the single default in the upcoming 3.0).
 
 ```python
 from litestar import Litestar
@@ -587,18 +943,19 @@ from litestar.openapi.plugins import ScalarRenderPlugin, SwaggerRenderPlugin
 app = Litestar(
     route_handlers=[...],
     openapi_config=OpenAPIConfig(
-        title="My API",
-        version="1.0.0",
+        title="My API", version="1.0.0",
         render_plugins=[ScalarRenderPlugin(), SwaggerRenderPlugin()],
     ),
 )
 ```
 
-Scalar is the Litestar project's preferred UI (and becomes the single default in the upcoming 3.0). Available render plugins include `ScalarRenderPlugin`, `SwaggerRenderPlugin`, `RedocRenderPlugin`, `RapidocRenderPlugin`, and `StoplightRenderPlugin`. Refine per-parameter schema with `Parameter(...)` and request bodies with `Body(...)`.
+Available renderers include `ScalarRenderPlugin`, `SwaggerRenderPlugin`, `RedocRenderPlugin`, `RapidocRenderPlugin`, `StoplightRenderPlugin`. Refine per-parameter schema with `Parameter(...)` and request bodies with `Body(...)`.
+
+---
 
 ## Parameters & request data
 
-Query, header, and cookie parameters are declared with `Parameter`; request bodies with `Body`; and DI-only values with `Dependency`. A bare typed parameter that matches no path parameter is treated as a query parameter.
+Query, header, and cookie parameters use `Parameter`; request bodies use `Body`; DI-only values use `Dependency`. A bare typed parameter matching no path parameter is treated as a query parameter.
 
 ```python
 from typing import Annotated
@@ -619,9 +976,110 @@ async def upload(
 ) -> None: ...
 ```
 
-## structlog logging
+---
 
-Use Litestar's `StructlogPlugin`, which wires request-scoped structured logging and gives every handler a `request.logger`. Configure JSON rendering in production and console rendering in dev; bind request context via contextvars.
+## Standard-library idioms
+
+### Filesystem: `pathlib`, never `os.path`
+
+```python
+from pathlib import Path
+
+config = Path("~/.config/app").expanduser()
+config.mkdir(parents=True, exist_ok=True)
+data = (config / "settings.toml").read_text(encoding="utf-8")
+for py in Path("src").rglob("*.py"):
+    print(py.relative_to("src"))
+# Python 3.14 adds Path.copy() and Path.move().
+```
+
+### Dates and times: `zoneinfo`, never `pytz`
+
+```python
+from datetime import datetime, UTC
+from zoneinfo import ZoneInfo
+
+now = datetime.now(UTC)     # never datetime.utcnow() — deprecated, returns naive
+meeting = datetime(2026, 7, 2, 14, 0, tzinfo=ZoneInfo("America/New_York"))
+in_tokyo = meeting.astimezone(ZoneInfo("Asia/Tokyo"))
+```
+
+### Reading TOML: `tomllib` (read-only; use `tomli-w` to write)
+
+```python
+import tomllib
+from pathlib import Path
+
+with Path("pyproject.toml").open("rb") as f:   # must be binary mode
+    config = tomllib.load(f)
+```
+
+### Enums, functools, contextlib
+
+```python
+from enum import StrEnum, auto
+from functools import cache, cached_property, singledispatch
+from contextlib import contextmanager, suppress, ExitStack
+from pathlib import Path
+
+class Color(StrEnum):
+    RED = auto()      # "red" — members are real strings
+    GREEN = auto()
+
+@cache
+def fib(n: int) -> int:
+    return n if n < 2 else fib(n - 1) + fib(n - 2)
+
+class Dataset:
+    def __init__(self, rows: list[dict]) -> None:
+        self.rows = rows
+    @cached_property                    # computed once per instance
+    def stats(self) -> dict[str, float]:
+        return expensive_analysis(self.rows)
+
+with suppress(FileNotFoundError):
+    Path("maybe.txt").unlink()
+
+with ExitStack() as stack:              # manage a dynamic number of contexts
+    files = [stack.enter_context(open(p)) for p in paths]
+```
+
+---
+
+## Error handling
+
+Catch the narrowest exception you can, never `except:` bare, use `raise ... from e` to preserve chains, and use `try/finally` or context managers for cleanup.
+
+```python
+# Exception groups (PEP 654): raise/handle multiple at once.
+def validate(data: dict) -> None:
+    errors: list[Exception] = []
+    if "name" not in data:
+        errors.append(ValueError("missing name"))
+    if "age" not in data:
+        errors.append(ValueError("missing age"))
+    if errors:
+        raise ExceptionGroup("validation failed", errors)
+
+try:
+    validate({})
+except* ValueError as eg:
+    for e in eg.exceptions:
+        logger.warning("invalid", error=str(e))
+
+# Add context to a propagating exception without catching it.
+try:
+    parse(raw)
+except ValueError as e:
+    e.add_note(f"while parsing {source!r}")
+    raise
+```
+
+---
+
+## Logging: structlog
+
+Use Litestar's `StructlogPlugin`, which wires request-scoped structured logging and gives every handler a `request.logger`. Configure JSON rendering in production and console rendering in dev; bind request context via contextvars (async-safe, flow through the event loop).
 
 ```python
 from litestar import Litestar, Request, get
@@ -634,7 +1092,7 @@ async def index(request: Request) -> None:
 app = Litestar(route_handlers=[index], plugins=[StructlogPlugin()])
 ```
 
-For control over the processor chain, pass a `StructlogConfig` wrapping a `StructLoggingConfig` (which exposes `processors`, `wrapper_class`, `logger_factory`, `cache_logger_on_first_use`, `log_exceptions`). A standalone structlog config for JSON output uses the stdlib bridge so third-party logs share the format:
+For control over the processor chain, pass a `StructlogConfig` wrapping a `StructLoggingConfig` (`processors`, `wrapper_class`, `logger_factory`, `cache_logger_on_first_use`, `log_exceptions`). A standalone JSON config uses the stdlib bridge so third-party logs share the format:
 
 ```python
 import structlog
@@ -654,11 +1112,13 @@ structlog.configure(
 )
 ```
 
-Bind per-request context with `structlog.contextvars.bind_contextvars(request_id=...)` — contextvars are async-safe and flow through the event loop. Prefer `WriteLogger`/stdlib output over `PrintLogger` under Granian so log lines aren't interleaved or lost. Do not use bare `logging.getLogger().info("msg %s", x)` %-style calls; log events with structured key-values.
+Bind per-request context with `structlog.contextvars.bind_contextvars(request_id=...)`. Prefer `WriteLogger`/stdlib output over `PrintLogger` under Granian so lines aren't interleaved. Configure logging once at the entry point — never in library modules. Log structured key-values, not `%`-style messages; the one place lazy `%`-args are correct is a *stdlib* logging call (`logger.info("x=%s", x)`), where the message is only formatted if the level is enabled — never an f-string there. Never use `print()` for diagnostics in production.
+
+---
 
 ## httpx: outbound HTTP
 
-Use `httpx.AsyncClient` as a long-lived object created at startup and closed at shutdown (see the lifespan example) — never instantiate one per request, which throws away connection pooling and TLS reuse. Configure timeouts and pool limits explicitly. `requests` is the sync/legacy library and must not be used in this async stack.
+Use `httpx.AsyncClient` as a **long-lived object** created at startup and closed at shutdown (see [Lifespan](#middleware-lifespan-state--stores)) — never instantiate one per request, which throws away connection pooling and TLS reuse. `requests` is sync/legacy and must not be used here.
 
 ```python
 import httpx
@@ -669,32 +1129,28 @@ client = httpx.AsyncClient(
     limits=httpx.Limits(max_connections=100, max_keepalive_connections=20, keepalive_expiry=30.0),
     http2=True,
 )
-
 resp = await client.get("/users")
 resp.raise_for_status()
 data = resp.json()
 ```
 
-Stream large responses with `async with client.stream("GET", url) as resp: async for chunk in resp.aiter_bytes(): ...`. Retries/custom behavior go through a custom `AsyncHTTPTransport(retries=...)`. For in-process testing against your Litestar app without a socket, use `httpx.ASGITransport`:
+Stream large responses with `async with client.stream("GET", url) as resp: async for chunk in resp.aiter_bytes(): ...`. Retries go through a custom `AsyncHTTPTransport(retries=...)`. For in-process testing against your Litestar app without a socket, use `httpx.ASGITransport(app=app)`.
 
-```python
-transport = httpx.ASGITransport(app=app)
-async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
-    r = await client.get("/health")
-```
+---
 
 ## Testing
 
-Litestar ships test clients built on httpx: `TestClient` (sync), `AsyncTestClient` (async), and the `create_test_client` helper for quick, dependency-overriding setups. Use `subprocess_sync_client`/`AsyncTestClient` with a live server when you need real Granian behavior.
+Litestar ships httpx-based clients: `TestClient` (sync), `AsyncTestClient` (async, async-native in v3), and `create_test_client` / `create_async_test_client` helpers. Build the app **fresh per test** via the application factory so tests stay isolated; Litestar deliberately has no global `dependency_overrides` — override by passing `dependencies={}` to the client.
 
 ```python
+from litestar.status_codes import HTTP_200_OK
 from litestar.testing import create_test_client
+from app.controllers.users import UserController
 
-def test_health() -> None:
-    with create_test_client(route_handlers=[health]) as client:
-        resp = client.get("/health")
-        assert resp.status_code == 200
-        assert resp.json() == {"status": "ok"}
+def test_list_users() -> None:
+    with create_test_client(route_handlers=[UserController]) as client:
+        resp = client.get("/users")
+        assert resp.status_code == HTTP_200_OK
 ```
 
 ```python
@@ -708,17 +1164,25 @@ async def test_users() -> None:
         assert resp.status_code == 200
 ```
 
-Override dependencies by passing `dependencies={...}` to the test client to inject test doubles (e.g. a session bound to a rolled-back transaction).
+Use `websocket_connect` for WebSocket handlers, and `tmp_path` (a `pathlib.Path`) / `monkeypatch` (auto-reverting) fixtures. Prefer `parametrize` over loops so each case reports separately. Add `hypothesis` property tests where a function has an invariant:
+
+```python
+from hypothesis import given, strategies as st
+
+@given(st.text())
+def test_roundtrip(s: str):
+    assert decode(encode(s)) == s
+```
+
+---
 
 ## Alembic migrations (async)
 
-Initialize with the async template so `env.py` uses an async engine. Alembic 1.16+ also offers a `pyproject` template that keeps config in `pyproject.toml`.
+Initialize with the async template so `env.py` uses an async engine (Alembic 1.16+ also offers a `pyproject` template). Set naming conventions on your `MetaData` so autogenerated constraints have stable, reversible names.
 
 ```bash
 alembic init -t async migrations
 ```
-
-Set naming conventions on your `MetaData` so autogenerated constraints have stable, predictable names (critical for reversible migrations) — define them on the Base's metadata:
 
 ```python
 from sqlalchemy import MetaData
@@ -736,30 +1200,37 @@ class Base(DeclarativeBase):
     metadata = MetaData(naming_convention=NAMING_CONVENTION)
 ```
 
-In `migrations/env.py`, import your models so their metadata is populated, set `target_metadata = Base.metadata`, and read the async URL. The async template already runs migrations through `connection.run_sync(do_run_migrations)` inside an `AsyncEngine`. Typical loop:
+In `migrations/env.py`, import your models so their metadata is populated, set `target_metadata = Base.metadata`, and read the async URL (the async template already runs migrations through `connection.run_sync(do_run_migrations)`). Typical loop:
 
 ```bash
 alembic revision --autogenerate -m "add author table"
 alembic upgrade head
 ```
 
-Always review autogenerated scripts — Alembic reliably detects table/column adds/removes and nullability but not every change (e.g. some type changes). Advanced Alchemy ships its own Alembic configuration/CLI integration that plays with its base models if you prefer that path.
+Always review autogenerated scripts — Alembic detects table/column adds/removes and nullability but not every change (some type changes). Use Alembic for production schema; `create_all=False`. Advanced Alchemy ships its own Alembic CLI integration that plays with its base models if you prefer that path.
 
-## uv: project & dependency management
+---
 
-uv is the Rust project/package manager — it replaces pip, pip-tools, poetry, pdm, and virtualenv management with one fast tool backed by `pyproject.toml` + `uv.lock`. Use `[dependency-groups]` (PEP 735) for dev-only tools, `uv add`/`remove`/`sync`/`lock`/`run`, and `uv python pin` to fix the interpreter.
+## Project layout & packaging
 
-```bash
-uv init myapp
-uv python pin 3.14
-uv add litestar granian litestar-granian msgspec "sqlalchemy[asyncio]" asyncpg advanced-alchemy alembic structlog httpx
-uv add --dev ruff basedpyright pytest pytest-asyncio
-uv sync
-uv run litestar run
-uvx ruff check .        # run a tool ephemerally without installing into the project
+Use the `src/` layout with `pyproject.toml` as the single source of truth. The layout prevents accidentally importing your package from the working directory instead of the installed copy. Ship `py.typed` so downstream checkers use your annotations.
+
 ```
-
-A representative `pyproject.toml`:
+myapp/
+├── pyproject.toml
+├── uv.lock
+├── .python-version
+├── src/
+│   └── myapp/
+│       ├── __init__.py
+│       ├── py.typed
+│       ├── server.py
+│       ├── models.py
+│       ├── controllers/
+│       └── services/
+├── migrations/
+└── tests/
+```
 
 ```toml
 [project]
@@ -783,19 +1254,51 @@ dependencies = [
 dev = [
     "ruff>=0.15",
     "basedpyright>=1.39",
-    "pytest>=8",
+    "pytest>=9",
     "pytest-asyncio>=1",
+    "hypothesis>=6",
 ]
 
-[tool.uv]
-# uv-specific resolver settings go here if needed
+[project.scripts]
+myapp = "myapp.server:app"
+
+[build-system]
+requires = ["uv_build>=0.11,<0.12"]
+build-backend = "uv_build"
 ```
 
-`uv.lock` pins exact resolved versions for reproducible installs; commit it. `requires-python` doubles as ruff's inferred target version.
+`uv_build` is the idiomatic default for a pure-Python `uv` project; use `hatchling` when you need build hooks/plugins or VCS-tag-driven versioning, `maturin`/`scikit-build-core` for native extensions. Use `[dependency-groups]` (PEP 735) for dev tooling rather than `[project.optional-dependencies]` (which is for real runtime extras).
 
-## ruff: lint + format
+---
 
-ruff is the single linter + formatter, replacing black, isort, flake8, pyupgrade, and pydocstyle. `ruff format` is the black-compatible formatter; `ruff check --fix` lints and autofixes. Ruff v0.15.0 (released 2026-02-03) introduced the new 2026 style guide, including unparenthesized `except A, B, C` (PEP 758) for target-version 3.14+. Configure in `pyproject.toml`:
+## Tooling
+
+### uv — project & dependency management
+
+`uv` replaces pip, pip-tools, pipx, poetry, pdm, pyenv, virtualenv, and twine with one fast Rust binary. Do **not** hand-maintain `requirements.txt` or use `pip install` in a project.
+
+```bash
+uv init myapp
+uv python pin 3.14
+uv add litestar granian litestar-granian msgspec \
+       "sqlalchemy[asyncio]" asyncpg advanced-alchemy alembic structlog httpx
+uv add --dev ruff basedpyright pytest pytest-asyncio hypothesis
+uv sync                        # make the env match the lockfile exactly
+uv run litestar run --reload   # run in the project env (auto-syncs first)
+uv lock --upgrade-package httpx
+uvx ruff check .               # run a tool ephemerally, no project install
+```
+
+`uv.lock` is cross-platform and managed by uv — commit it, never edit it by hand. `requires-python` doubles as ruff's inferred target version.
+
+### ruff — lint + format
+
+`ruff` is a single Rust tool replacing black, isort, flake8, pyupgrade, and pydocstyle. `ruff format` is the black-compatible formatter; `ruff check --fix` lints and autofixes. v0.15.0 (2026-02-03) introduced the 2026 style guide, including unparenthesized `except A, B, C` (PEP 758) for target-version 3.14+.
+
+```bash
+uv run ruff check --fix .
+uv run ruff format .
+```
 
 ```toml
 [tool.ruff]
@@ -803,23 +1306,25 @@ line-length = 88
 target-version = "py314"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP", "B", "SIM", "C4", "ASYNC", "RUF"]
-ignore = ["E501"]  # let the formatter own line length
+select = ["E", "W", "F", "I", "UP", "B", "C4", "SIM", "ASYNC", "PTH", "RUF"]
+ignore = ["E501"]              # let the formatter own line length
 
 [tool.ruff.lint.isort]
 known-first-party = ["myapp"]
 
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]       # re-exports
+
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
-skip-magic-trailing-comma = false
 ```
 
-`UP` modernizes syntax (old unions → `X | Y`, etc.), `ASYNC` catches blocking calls in async functions (directly relevant to the "don't block the event loop" rule), `B` catches bugbears, `SIM` simplifies. Run `uv run ruff check --fix .` then `uv run ruff format .`; wire the official `ruff-pre-commit` hooks (`ruff-check` with `--fix`, then `ruff-format`).
+`ASYNC` catches blocking calls in async functions (directly relevant to "don't block the event loop"), `UP` modernizes syntax, `B` catches bugbears, `SIM` simplifies, `PTH` pushes `os.path` → `pathlib`. Wire the official `ruff-pre-commit` hooks (`ruff-check --fix`, then `ruff-format`).
 
-## basedpyright: type checking
+### basedpyright (default) / mypy (alternative)
 
-basedpyright is the stricter pyright fork and the type checker for this stack. Its default `typeCheckingMode` is `recommended` (a level above pyright's `standard`/`strict` scale) and it adds rules pyright lacks — `reportAny`, `reportExplicitAny`, `reportIgnoreCommentWithoutRule`, `reportUnreachable`. It ships a bundled Node runtime via the PyPI wheel, so no separate npm install. Prefer it over plain pyright or mypy.
+**basedpyright** is the stricter pyright fork and the stack's type checker. Its default `typeCheckingMode` is `recommended` and it adds rules pyright lacks — `reportAny`, `reportExplicitAny`, `reportIgnoreCommentWithoutRule`, `reportUnreachable`. It ships a bundled Node runtime via the PyPI wheel (no npm install).
 
 ```toml
 [tool.basedpyright]
@@ -829,26 +1334,99 @@ include = ["src", "tests"]
 reportMissingTypeStubs = false
 ```
 
-Run with `uv run basedpyright`. Because `recommended` enables `reportIgnoreCommentWithoutRule`, every suppression must name its rule: use `# pyright: ignore[reportAny]`, not a bare `# type: ignore`. `reportAny`/`reportExplicitAny` push you off `Any`; where a third-party API unavoidably returns `Any`, suppress narrowly at that line. This mode pairs well with the stack: SQLAlchemy `Mapped[str]` resolves to `str` on instances, msgspec `Struct`s are fully typed (constructor calls are statically checked — the compensation for no runtime constructor validation), and Litestar's handler signatures are introspected as real types. For an existing codebase adopting strict rules, `basedpyright --writebaseline` records current diagnostics so you enforce the ceiling without fixing everything at once.
+```bash
+uv run basedpyright
+```
+
+Because `recommended` enables `reportIgnoreCommentWithoutRule`, every suppression must name its rule: `# pyright: ignore[reportAny]`, not a bare `# type: ignore`. This mode pairs well with the stack: SQLAlchemy `Mapped[str]` resolves to `str` on instances, msgspec `Struct`s are fully statically checked (the compensation for no runtime constructor validation), and Litestar handler signatures are real types. For an existing codebase, `basedpyright --writebaseline` records current diagnostics so you enforce the ceiling without fixing everything at once.
+
+**mypy** is the mature alternative — run it in `strict = true` for new projects if you prefer it as the CI gate (2.0, May 2026, adds experimental parallel checking via `--num-workers N`):
+
+```toml
+[tool.mypy]
+python_version = "3.14"
+strict = true
+warn_unreachable = true
+
+[[tool.mypy.overrides]]
+module = ["tests.*"]
+disallow_untyped_defs = false
+```
+
+Emerging checkers — Astral's `ty` (beta) and Meta's `pyrefly` (1.0.0) — are dramatically faster but not yet ready as a sole gate; keep basedpyright (or mypy/pyright) as the primary CI check.
+
+### pytest config
+
+```toml
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = "-ra --strict-markers --strict-config"
+markers = [
+    "slow: marks tests as slow",
+    "integration: requires external services",
+]
+```
+
+```bash
+uv run ruff check --fix . && uv run ruff format .
+uv run basedpyright
+uv run pytest
+```
+
+---
 
 ## Anti-patterns to avoid
 
-| Wrong (adjacent-ecosystem habit) | Right (this stack) |
+| Wrong (adjacent-ecosystem / legacy habit) | Right (this stack) |
 |---|---|
-| `from pydantic import BaseModel` for schemas | `class X(msgspec.Struct)` |
-| `Field(gt=0)` / `@validator` | `Annotated[int, msgspec.Meta(gt=0)]` |
-| `uvicorn app:app` / `gunicorn -k uvicorn.workers...` | `litestar run` with `GranianPlugin` |
+| `class UserIn(pydantic.BaseModel)` for models | `class UserIn(msgspec.Struct, kw_only=True)` |
+| `Field(gt=0)` / `@validator` / `ConfigDict` | `Annotated[int, msgspec.Meta(gt=0)]` |
+| `return user.model_dump()` / `.dict()` | `return user` — let msgspec encode |
+| Untagged `Union` of structs for polymorphism | `tag=`/`tag_field=` on **every** union member |
+| Expecting `"30"` to coerce to `int` | msgspec is strict; fix the input or opt into `strict=False` |
+| Constructing a struct and expecting `Meta` to validate | validate on decode / `msgspec.convert` |
+| Mutating a `frozen=True` struct | `msgspec.structs.replace(obj, field=…)` |
+| `uvicorn app:app` / `gunicorn -k uvicorn.workers…` | `litestar run` with `GranianPlugin()` |
+| `--interface rsgi` before confirming support | `--interface asgi` (or let the plugin manage it) |
+| `Depends(get_db)` in the signature | `dependencies={"db": Provide(get_db)}` + `db` param |
 | `session.query(User).filter_by(...)` | `select(User).where(...)` + `session.scalars()` |
-| Accessing `author.books` unloaded under async | `selectinload(Author.books)` or `await author.awaitable_attrs.books` |
+| Accessing `author.books` unloaded under async | `selectinload(...)` / `await author.awaitable_attrs.books` |
 | `expire_on_commit=True` (default) under async | `expire_on_commit=False` |
 | `httpx.AsyncClient()` per request | one long-lived client on `app.state`, closed in lifespan |
 | `import requests` | `httpx.AsyncClient` |
-| Blocking I/O inside `async def` | async driver/client, or `run_sync`/threadpool |
-| `pip install` / `poetry add` | `uv add` / `uv sync` |
+| Blocking I/O inside `async def` | async driver/client, or sync handler with `sync_to_thread=True` |
+| Sync handler with no `sync_to_thread` | `sync_to_thread=True` (blocking) or `False` (pure CPU) |
+| `create_all` for production schema | Alembic migrations (`upgrade head`) |
+| Global `FLUSHALL`-style cache clears | namespaced `RedisStore` + scoped `delete_all` |
+| Handler/DI types behind `if TYPE_CHECKING:` | keep injected/handler types importable at runtime |
+| `from __future__ import annotations` in ORM model modules | omit it (Mapped introspection); redundant elsewhere on 3.14 |
+| Hand-writing model→response conversion | a DTO with `exclude`/`rename`, or `msgspec.convert(..., from_attributes=True)` |
+| `from typing import List, Dict, Optional, Union` | built-in `list`/`dict`, `X \| None`, `X \| Y` |
+| `TypeVar('T')` + `Generic[T]` | `def f[T](...)` / `class C[T]:` (PEP 695) |
+| `import os.path; os.path.join(a, b)` | `from pathlib import Path; Path(a) / b` |
+| `import pytz` / `datetime.utcnow()` | `zoneinfo.ZoneInfo` / `datetime.now(UTC)` |
+| `"%s" % x` / `"{}".format(x)` | f-strings (`f"{x}"`) |
+| `# type:` comment hints | inline annotation `x: list[int]` |
+| Bare `asyncio.gather(...)` for related tasks | `async with asyncio.TaskGroup() as tg:` |
+| `except Exception:` swallowing | catch the specific type; `raise ... from e` |
+| `pip install` / `poetry add` + `requirements.txt` | `uv add` / `uv sync` + `uv.lock` |
 | `black . && isort . && flake8` | `ruff format` + `ruff check --fix` |
-| `mypy` / plain `pyright` | `basedpyright` (`recommended`) |
+| `mypy` / plain `pyright` as the only choice | `basedpyright` (`recommended`); mypy strict as alternative |
 | bare `# type: ignore` | `# pyright: ignore[reportX]` |
-| `from __future__ import annotations` in ORM model modules | omit it in model modules (Mapped introspection); fine elsewhere |
-| `Optional[X]` / `List[X]` | `X | None` / `list[X]` |
-| `create_all` for prod schema | Alembic migrations (`upgrade head`) |
-| Untagged `Struct` unions | `tag="..."` on every union member |
+| `print()` for diagnostics | structlog `request.logger` / structured events |
+| f-string inside a stdlib logging call | lazy `logger.info("x=%s", x)` |
+| Mutable default argument / class attribute | `x: list \| None = None` / `field(default_factory=...)` |
+
+---
+
+## Version & compatibility
+
+| Feature | Introduced / stabilized |
+|---|---|
+| Built-in generics (`list[int]`) | Python 3.9 |
+| `X \| Y` unions, `match`/`case` (PEP 634) | Python 3.10 |
+| `TaskGroup`, `asyncio.timeout`, exception groups + `except*`, `StrEnum`, `tomllib`, `Self`, `add_note` | Python 3.11 |
+| PEP 695 generics + `type` statement, `@override`, `Unpack` `**kwargs`, per-interpreter GIL (PEP 684) | Python 3.12 |
+| `ReadOnly` TypedDict items (PEP 705) | Python 3.13 |
+| Deferred annotations (PEP 649/749), `annotationlib`, t-strings (PEP 750), `except` without parens (PEP 758), `concurrent.interpreters` (PEP 734), free-threaded build supported (PEP 779, opt-in `3.14t`), experimental JIT | Python 3.14 |

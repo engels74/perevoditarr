@@ -18,7 +18,7 @@ dependencies = [
     "cryptography>=49.0.0",
     "granian>=2.7.8",
     "httpx>=0.28.1",
-    "litestar>=2.24.0",
+    "litestar[jwt]>=2.24.0",
     "litestar-granian>=0.15.0",
     "msgspec>=0.21.1",
     "pysignalr>=1.3.2",
@@ -65,8 +65,13 @@ pythonVersion = "3.14"
 typeCheckingMode = "recommended"
 include = ["src", "tests"]
 reportMissingTypeStubs = false
+# recommended-mode diagnostics stay visible; the commit/CI gate is errors.
+# (Litestar/httpx expose enough partially-unknown surface that warning-level
+# noise is structural, not fixable in this repo.)
+failOnWarnings = false
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
+markers = ["perf: nightly performance harness (needs PEREVODITARR_PERF_DATABASE_URL)"]

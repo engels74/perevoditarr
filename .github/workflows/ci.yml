@@ -45,7 +45,7 @@ jobs:
       # check runs svelte-kit sync first — also needed for $lib resolution in bun test
       - run: bun run check
       - run: bun run lint
-      - run: bun test
+      - run: bun run test
       - run: bun --bun vite build
       # generated API types must match the backend schema (P1-T7 drift check)
       - run: bun run generate:api

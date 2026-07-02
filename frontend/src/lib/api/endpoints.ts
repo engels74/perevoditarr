@@ -10,16 +10,39 @@ import type {
 	ConnectionTestResult,
 	CoverageStat,
 	DoctorRunRead,
+	EffectivePolicyRead,
 	EpisodeRead,
+	ExclusionCreate,
+	ExclusionRead,
+	ExplainRead,
 	FreshnessRead,
+	IntentDetail,
+	IntentRead,
 	LingarrDiscoveryResult,
 	LingarrInstanceCreate,
 	LingarrInstanceRead,
 	LingarrInstanceUpdate,
 	MovieRead,
+	OverrideRead,
+	OverrideUpsert,
 	Page,
+	PlanPreviewResponse,
+	PolicyExport,
+	PolicyImportRequest,
+	PolicyImportResult,
+	PresetCreate,
+	PresetRead,
+	PresetUpdate,
+	ProfileAssignmentCreate,
+	ProfileAssignmentRead,
+	ProfileEditorResponse,
+	ProfileValidateRequest,
+	ProfileValidateResponse,
 	SeriesRead,
-	SyncRunRead
+	SyncRunRead,
+	TranslationProfileCreate,
+	TranslationProfileRead,
+	TranslationProfileUpdate
 } from './types';
 
 function qs(params: Record<string, string | number | boolean | undefined | null>): string {
@@ -231,4 +254,299 @@ export async function getLatestDoctorRun(
 ): Promise<DoctorRunRead | null> {
 	// The endpoint may answer 204 (undefined) or a JSON null when no run exists.
 	return (await apiFetch<DoctorRunRead | null>('/api/v1/doctor/latest', {}, fetchFn)) ?? null;
+}
+
+// --- Policy -------------------------------------------------------------------
+
+export function listPresets(fetchFn: FetchLike = fetch): Promise<PresetRead[]> {
+	return apiFetch<PresetRead[]>('/api/v1/policy/presets', {}, fetchFn);
+}
+
+export function createPreset(input: PresetCreate, fetchFn: FetchLike = fetch): Promise<PresetRead> {
+	return apiFetch<PresetRead>(
+		'/api/v1/policy/presets',
+		{ method: 'POST', body: JSON.stringify(input) },
+		fetchFn
+	);
+}
+
+export function updatePreset(
+	id: string,
+	patch: PresetUpdate,
+	fetchFn: FetchLike = fetch
+): Promise<PresetRead> {
+	return apiFetch<PresetRead>(
+		`/api/v1/policy/presets/${id}`,
+		{ method: 'PATCH', body: JSON.stringify(patch) },
+		fetchFn
+	);
+}
+
+export function deletePreset(id: string, fetchFn: FetchLike = fetch): Promise<void> {
+	return apiFetch<void>(`/api/v1/policy/presets/${id}`, { method: 'DELETE' }, fetchFn);
+}
+
+export function activatePreset(id: string, fetchFn: FetchLike = fetch): Promise<PresetRead> {
+	return apiFetch<PresetRead>(
+		`/api/v1/policy/presets/${id}/activate`,
+		{ method: 'POST', body: '{}' },
+		fetchFn
+	);
+}
+
+export function forkPreset(
+	id: string,
+	name: string,
+	fetchFn: FetchLike = fetch
+): Promise<PresetRead> {
+	return apiFetch<PresetRead>(
+		`/api/v1/policy/presets/${id}/fork`,
+		{ method: 'POST', body: JSON.stringify({ name }) },
+		fetchFn
+	);
+}
+
+export function exportPolicies(fetchFn: FetchLike = fetch): Promise<PolicyExport> {
+	return apiFetch<PolicyExport>('/api/v1/policy/export', {}, fetchFn);
+}
+
+export function importPolicies(
+	input: PolicyImportRequest,
+	fetchFn: FetchLike = fetch
+): Promise<PolicyImportResult> {
+	return apiFetch<PolicyImportResult>(
+		'/api/v1/policy/import',
+		{ method: 'POST', body: JSON.stringify(input) },
+		fetchFn
+	);
+}
+
+export function listProfiles(fetchFn: FetchLike = fetch): Promise<TranslationProfileRead[]> {
+	return apiFetch<TranslationProfileRead[]>('/api/v1/policy/profiles', {}, fetchFn);
+}
+
+export function createProfile(
+	input: TranslationProfileCreate,
+	fetchFn: FetchLike = fetch
+): Promise<ProfileEditorResponse> {
+	return apiFetch<ProfileEditorResponse>(
+		'/api/v1/policy/profiles',
+		{ method: 'POST', body: JSON.stringify(input) },
+		fetchFn
+	);
+}
+
+export function getProfile(id: string, fetchFn: FetchLike = fetch): Promise<ProfileEditorResponse> {
+	return apiFetch<ProfileEditorResponse>(`/api/v1/policy/profiles/${id}`, {}, fetchFn);
+}
+
+export function updateProfile(
+	id: string,
+	patch: TranslationProfileUpdate,
+	fetchFn: FetchLike = fetch
+): Promise<ProfileEditorResponse> {
+	return apiFetch<ProfileEditorResponse>(
+		`/api/v1/policy/profiles/${id}`,
+		{ method: 'PATCH', body: JSON.stringify(patch) },
+		fetchFn
+	);
+}
+
+export function deleteProfile(id: string, fetchFn: FetchLike = fetch): Promise<void> {
+	return apiFetch<void>(`/api/v1/policy/profiles/${id}`, { method: 'DELETE' }, fetchFn);
+}
+
+export function validateProfileValues(
+	input: ProfileValidateRequest,
+	fetchFn: FetchLike = fetch
+): Promise<ProfileValidateResponse> {
+	return apiFetch<ProfileValidateResponse>(
+		'/api/v1/policy/profiles/validate',
+		{ method: 'POST', body: JSON.stringify(input) },
+		fetchFn
+	);
+}
+
+export function listAssignments(
+	instanceId?: string,
+	fetchFn: FetchLike = fetch
+): Promise<ProfileAssignmentRead[]> {
+	return apiFetch<ProfileAssignmentRead[]>(
+		`/api/v1/policy/assignments${qs({ bazarr_instance_id: instanceId })}`,
+		{},
+		fetchFn
+	);
+}
+
+export function createAssignment(
+	input: ProfileAssignmentCreate,
+	fetchFn: FetchLike = fetch
+): Promise<ProfileAssignmentRead> {
+	return apiFetch<ProfileAssignmentRead>(
+		'/api/v1/policy/assignments',
+		{ method: 'POST', body: JSON.stringify(input) },
+		fetchFn
+	);
+}
+
+export function deleteAssignment(id: string, fetchFn: FetchLike = fetch): Promise<void> {
+	return apiFetch<void>(`/api/v1/policy/assignments/${id}`, { method: 'DELETE' }, fetchFn);
+}
+
+export function listExclusions(
+	instanceId?: string,
+	fetchFn: FetchLike = fetch
+): Promise<ExclusionRead[]> {
+	return apiFetch<ExclusionRead[]>(
+		`/api/v1/policy/exclusions${qs({ bazarr_instance_id: instanceId })}`,
+		{},
+		fetchFn
+	);
+}
+
+export function createExclusion(
+	input: ExclusionCreate,
+	fetchFn: FetchLike = fetch
+): Promise<ExclusionRead> {
+	return apiFetch<ExclusionRead>(
+		'/api/v1/policy/exclusions',
+		{ method: 'POST', body: JSON.stringify(input) },
+		fetchFn
+	);
+}
+
+export function deleteExclusion(id: string, fetchFn: FetchLike = fetch): Promise<void> {
+	return apiFetch<void>(`/api/v1/policy/exclusions/${id}`, { method: 'DELETE' }, fetchFn);
+}
+
+export function listOverrides(
+	instanceId?: string,
+	fetchFn: FetchLike = fetch
+): Promise<OverrideRead[]> {
+	return apiFetch<OverrideRead[]>(
+		`/api/v1/policy/overrides${qs({ bazarr_instance_id: instanceId })}`,
+		{},
+		fetchFn
+	);
+}
+
+export function upsertOverride(
+	input: OverrideUpsert,
+	fetchFn: FetchLike = fetch
+): Promise<OverrideRead> {
+	return apiFetch<OverrideRead>(
+		'/api/v1/policy/overrides',
+		{ method: 'POST', body: JSON.stringify(input) },
+		fetchFn
+	);
+}
+
+export function deleteOverride(id: string, fetchFn: FetchLike = fetch): Promise<void> {
+	return apiFetch<void>(`/api/v1/policy/overrides/${id}`, { method: 'DELETE' }, fetchFn);
+}
+
+export interface EffectivePolicyQuery {
+	instanceId: string;
+	mediaType: 'series' | 'episode' | 'movie';
+	sonarrSeriesId?: number;
+	sonarrEpisodeId?: number;
+	radarrId?: number;
+	tags?: string;
+	monitored?: boolean;
+}
+
+export function getEffectivePolicy(
+	query: EffectivePolicyQuery,
+	fetchFn: FetchLike = fetch
+): Promise<EffectivePolicyRead> {
+	return apiFetch<EffectivePolicyRead>(
+		`/api/v1/policy/effective${qs({
+			bazarr_instance_id: query.instanceId,
+			media_type: query.mediaType,
+			sonarr_series_id: query.sonarrSeriesId,
+			sonarr_episode_id: query.sonarrEpisodeId,
+			radarr_id: query.radarrId,
+			tags: query.tags,
+			monitored: query.monitored
+		})}`,
+		{},
+		fetchFn
+	);
+}
+
+// --- Intents ------------------------------------------------------------------
+
+export interface IntentsQuery {
+	states?: string;
+	instanceId?: string;
+	mediaType?: 'episode' | 'movie';
+	targetLanguage?: string;
+	createdAfter?: string;
+	createdBefore?: string;
+	limit?: number;
+	offset?: number;
+}
+
+export function listIntents(
+	query: IntentsQuery,
+	fetchFn: FetchLike = fetch
+): Promise<Page<IntentRead>> {
+	return apiFetch<Page<IntentRead>>(
+		`/api/v1/intents${qs({
+			states: query.states,
+			bazarr_instance_id: query.instanceId,
+			media_type: query.mediaType,
+			target_language: query.targetLanguage,
+			created_after: query.createdAfter,
+			created_before: query.createdBefore,
+			limit: query.limit,
+			offset: query.offset
+		})}`,
+		{},
+		fetchFn
+	);
+}
+
+export function getIntent(id: string, fetchFn: FetchLike = fetch): Promise<IntentDetail> {
+	return apiFetch<IntentDetail>(`/api/v1/intents/${id}`, {}, fetchFn);
+}
+
+export interface ExplainQuery {
+	instanceId: string;
+	mediaType: 'episode' | 'movie';
+	externalMediaId: number;
+	language: string;
+	forced?: boolean;
+	hi?: boolean;
+}
+
+export function explainCandidate(
+	query: ExplainQuery,
+	fetchFn: FetchLike = fetch
+): Promise<ExplainRead> {
+	return apiFetch<ExplainRead>(
+		`/api/v1/intents/explain${qs({
+			bazarr_instance_id: query.instanceId,
+			media_type: query.mediaType,
+			external_media_id: query.externalMediaId,
+			language: query.language,
+			forced: query.forced,
+			hi: query.hi
+		})}`,
+		{},
+		fetchFn
+	);
+}
+
+// --- Plan preview ---------------------------------------------------------------
+
+export function getPlanPreview(
+	query: { instanceId?: string; limit?: number },
+	fetchFn: FetchLike = fetch
+): Promise<PlanPreviewResponse> {
+	return apiFetch<PlanPreviewResponse>(
+		`/api/v1/plan/preview${qs({ bazarr_instance_id: query.instanceId, limit: query.limit })}`,
+		{},
+		fetchFn
+	);
 }

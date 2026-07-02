@@ -1,7 +1,9 @@
 <script lang="ts">
 import { goto } from '$app/navigation';
-import { getCoverage, listMovies, listSeries } from '$lib/api/endpoints';
+import { type ExplainQuery, getCoverage, listMovies, listSeries } from '$lib/api/endpoints';
 import type { MovieRead, SeriesRead } from '$lib/api/types';
+import ExplainDialog from '$lib/components/explain-dialog.svelte';
+import ItemPolicyActions from '$lib/components/item-policy-actions.svelte';
 import { Badge } from '$lib/components/ui/badge';
 import { Button } from '$lib/components/ui/button';
 import { Input } from '$lib/components/ui/input';
@@ -12,6 +14,22 @@ import { createPagedList } from '$lib/state/library.svelte';
 
 const series = createPagedList<SeriesRead>((query) => listSeries(query));
 const movies = createPagedList<MovieRead>((query) => listMovies(query));
+
+// One explainer dialog for the whole page; wanted chips select into it.
+let explainQuery = $state<ExplainQuery | null>(null);
+let explainTitle = $state('');
+
+function openExplain(movie: MovieRead, wanted: { language: string; forced: boolean; hi: boolean }) {
+	explainTitle = `${movie.title} — wants ${wantedLabel(wanted)}`;
+	explainQuery = {
+		instanceId: movie.bazarrInstanceId,
+		mediaType: 'movie',
+		externalMediaId: movie.radarrId,
+		language: wanted.language,
+		forced: wanted.forced,
+		hi: wanted.hi
+	};
+}
 
 let tab = $state('series');
 let search = $state('');
@@ -45,7 +63,14 @@ function onSearchInput(): void {
 }
 
 function openSeries(row: SeriesRead): void {
-	void goto(`/library/series/${row.id}?title=${encodeURIComponent(row.title)}`);
+	// Item context rides the URL so the drill-down can explain wants and
+	// inspect policy without an extra series fetch (pure SPA).
+	const params = new URLSearchParams({
+		title: row.title,
+		instanceId: row.bazarrInstanceId,
+		sonarrSeriesId: String(row.sonarrSeriesId)
+	});
+	void goto(`/library/series/${row.id}?${params}`);
 }
 
 function rangeLabel(list: { offset: number; pageSize: number; total: number }): string {
@@ -99,6 +124,7 @@ function rangeLabel(list: { offset: number; pageSize: number; total: number }): 
 						<Table.Head>Monitored</Table.Head>
 						<Table.Head class="text-right">Episodes</Table.Head>
 						<Table.Head class="text-right">Wanted</Table.Head>
+						<Table.Head class="w-12"><span class="sr-only">Actions</span></Table.Head>
 					</Table.Row>
 				</Table.Header>
 				<Table.Body>
@@ -113,10 +139,19 @@ function rangeLabel(list: { offset: number; pageSize: number; total: number }): 
 							</Table.Cell>
 							<Table.Cell class="text-right">{row.episodeCount}</Table.Cell>
 							<Table.Cell class="text-right">{row.wantedCount}</Table.Cell>
+							<Table.Cell onclick={(event) => event.stopPropagation()}>
+								<ItemPolicyActions
+									instanceId={row.bazarrInstanceId}
+									mediaType="series"
+									externalId={row.sonarrSeriesId}
+									title={row.title}
+									monitored={row.monitored}
+								/>
+							</Table.Cell>
 						</Table.Row>
 					{:else}
 						<Table.Row>
-							<Table.Cell colspan={5} class="text-center text-muted-foreground">
+							<Table.Cell colspan={6} class="text-center text-muted-foreground">
 								{series.loading ? 'Loading…' : 'No series found'}
 							</Table.Cell>
 						</Table.Row>
@@ -158,6 +193,7 @@ function rangeLabel(list: { offset: number; pageSize: number; total: number }): 
 						<Table.Head>Monitored</Table.Head>
 						<Table.Head>Subtitles</Table.Head>
 						<Table.Head>Wanted</Table.Head>
+						<Table.Head class="w-12"><span class="sr-only">Actions</span></Table.Head>
 					</Table.Row>
 				</Table.Header>
 				<Table.Body>
@@ -182,16 +218,32 @@ function rangeLabel(list: { offset: number; pageSize: number; total: number }): 
 							<Table.Cell>
 								<div class="flex flex-wrap gap-1">
 									{#each row.wanted as wanted (wantedLabel(wanted))}
-										<Badge variant="outline">{wantedLabel(wanted)}</Badge>
+										<button
+											type="button"
+											class="cursor-pointer"
+											title="Why is this not planned?"
+											onclick={() => openExplain(row, wanted)}
+										>
+											<Badge variant="outline">{wantedLabel(wanted)}</Badge>
+										</button>
 									{:else}
 										<span class="text-muted-foreground">—</span>
 									{/each}
 								</div>
 							</Table.Cell>
+							<Table.Cell>
+								<ItemPolicyActions
+									instanceId={row.bazarrInstanceId}
+									mediaType="movie"
+									externalId={row.radarrId}
+									title={row.title}
+									monitored={row.monitored}
+								/>
+							</Table.Cell>
 						</Table.Row>
 					{:else}
 						<Table.Row>
-							<Table.Cell colspan={5} class="text-center text-muted-foreground">
+							<Table.Cell colspan={6} class="text-center text-muted-foreground">
 								{movies.loading ? 'Loading…' : 'No movies found'}
 							</Table.Cell>
 						</Table.Row>
@@ -222,3 +274,12 @@ function rangeLabel(list: { offset: number; pageSize: number; total: number }): 
 		</Tabs.Content>
 	</Tabs.Root>
 </div>
+
+{#if explainQuery}
+	<ExplainDialog
+		open={explainQuery !== null}
+		title={explainTitle}
+		query={explainQuery}
+		onClose={() => (explainQuery = null)}
+	/>
+{/if}

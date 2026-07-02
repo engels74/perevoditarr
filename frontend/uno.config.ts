@@ -12,6 +12,14 @@ export default defineConfig({
 	],
 	extractors: [extractorSvelte()],
 	transformers: [transformerVariantGroup()],
+	theme: {
+		// tweakcn modern-minimal type roles: Inter for the UI voice, JetBrains
+		// Mono for the machine voice (traces, codes, scores). Vars in app.css.
+		font: {
+			sans: 'var(--font-sans)',
+			mono: 'var(--font-mono)'
+		}
+	},
 	content: {
 		pipeline: {
 			include: [

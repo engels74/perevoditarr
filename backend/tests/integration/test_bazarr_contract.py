@@ -107,6 +107,25 @@ class TestLibraryEndpoints:
         assert movies.total == 1
         assert movies.data[0].title == "Film B"
 
+    async def test_movies_radarr_id_filter(
+        self, scenario: Scenario, bazarr_api: BazarrClient
+    ) -> None:
+        first = scenario.seed_movie(title="Film One")
+        _ = scenario.seed_movie(title="Film Two")
+
+        filtered = await bazarr_api.movies(radarr_ids=[first.radarr_id])
+        assert [movie.title for movie in filtered.data] == ["Film One"]
+
+        # None means "no filter" — everything comes back.
+        unfiltered = await bazarr_api.movies(radarr_ids=None)
+        assert unfiltered.total == 2
+
+        # An empty filter means "nothing", never "everything" (httpx would
+        # drop the empty param, silently widening the read).
+        empty = await bazarr_api.movies(radarr_ids=[])
+        assert empty.data == []
+        assert empty.total == 0
+
     async def test_wanted_pages(
         self, scenario: Scenario, bazarr_api: BazarrClient
     ) -> None:

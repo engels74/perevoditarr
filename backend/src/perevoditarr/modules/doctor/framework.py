@@ -16,6 +16,7 @@ from perevoditarr.modules.integrations.bazarr.schemas import (
     LanguagesProfile,
     SystemSettings,
 )
+from perevoditarr.modules.policy import ProfilePolicySummary
 
 type Severity = Literal["info", "warn", "critical"]
 
@@ -60,6 +61,10 @@ class DoctorContext(msgspec.Struct, kw_only=True):
     now: datetime
     instances: list[BazarrContext] = msgspec.field(default_factory=list)
     forward_auth_misconfigured: bool = False
+    # Translation-profile snapshots for FR-DR4/FR-DR6 (P2-T1 policy wiring).
+    translation_profiles: list[ProfilePolicySummary] = msgspec.field(
+        default_factory=list
+    )
 
 
 class DoctorCheck(Protocol):

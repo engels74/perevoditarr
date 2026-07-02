@@ -120,10 +120,23 @@ class BazarrClient:
         )
         return self._decode(response.content, EpisodesResponse).data
 
-    async def movies(self, *, start: int = 0, length: int = -1) -> MoviesPage:
-        response = await self._request(
-            "GET", "/api/movies", params={"start": start, "length": length}
-        )
+    async def movies(
+        self,
+        *,
+        start: int = 0,
+        length: int = -1,
+        radarr_ids: list[int] | None = None,
+    ) -> MoviesPage:
+        if radarr_ids is not None and not radarr_ids:
+            # httpx drops empty list params, which would silently turn
+            # "filter to nothing" into "no filter — fetch everything".
+            return MoviesPage()
+        params: _Params = {"start": start, "length": length}
+        if radarr_ids is not None:
+            # Upstream filter (mirrors /api/episodes seriesid[]): lets the
+            # reconciler read exactly the movies under evaluation (P2-T4).
+            params["radarrid[]"] = radarr_ids
+        response = await self._request("GET", "/api/movies", params=params)
         return self._decode(response.content, MoviesPage)
 
     async def wanted_episodes(

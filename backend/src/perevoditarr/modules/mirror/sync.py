@@ -7,6 +7,7 @@ last_seen_at only after a fully completed pass, so a crashed sync never
 fabricates disappearances.
 """
 
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from uuid import UUID
 
@@ -30,6 +31,11 @@ from perevoditarr.modules.mirror.models import (
 )
 
 _logger = get_logger()
+
+# On-sync-completion seam (P2-T3): app assembly plugs discovery in here so
+# the mirror module never imports intents (and never touches the SSE bus for
+# correctness signaling, §7.3).
+type WantedSyncCompleted = Callable[[UUID], Awaitable[None]]
 
 SERIES_PAGE_SIZE = 250
 MOVIES_PAGE_SIZE = 250
@@ -78,11 +84,15 @@ class MirrorSyncService:
         instances: InstancesService,
         gateway: InstanceGateway,
         sse_bus: SseBus,
+        on_wanted_sync_complete: WantedSyncCompleted | None = None,
     ) -> None:
         self.session: AsyncSession = session
         self.instances: InstancesService = instances
         self.gateway: InstanceGateway = gateway
         self.sse_bus: SseBus = sse_bus
+        self.on_wanted_sync_complete: WantedSyncCompleted | None = (
+            on_wanted_sync_complete
+        )
 
     async def _client(self, instance_id: UUID) -> BazarrClient:
         instance = await self.instances.get_bazarr(instance_id)
@@ -516,6 +526,16 @@ class MirrorSyncService:
             await self.session.rollback()
             await self._finish_run(run, "failed", counters, error=str(error))
             raise
+        if self.on_wanted_sync_complete is not None:
+            try:
+                await self.on_wanted_sync_complete(instance_id)
+            except Exception as error:
+                # The hook (discovery) failing must never fail the sync.
+                _logger.warning(
+                    "wanted-sync completion hook failed",
+                    instance_id=str(instance_id),
+                    error=str(error),
+                )
         return run
 
     # ---------------------------------------------------------------- runs

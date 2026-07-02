@@ -33,6 +33,8 @@ class AppSettings(msgspec.Struct, kw_only=True, frozen=True):
     sync_interval_seconds: int = 3600
     wanted_interval_seconds: int = 300
     doctor_interval_seconds: int = 86400
+    discovery_interval_seconds: int = 900
+    reconcile_interval_seconds: int = 600
 
 
 _FIELD_NAMES = frozenset(field.name for field in msgspec.structs.fields(AppSettings))
@@ -81,6 +83,8 @@ def _validate(settings: AppSettings) -> None:
         "sync_interval_seconds",
         "wanted_interval_seconds",
         "doctor_interval_seconds",
+        "discovery_interval_seconds",
+        "reconcile_interval_seconds",
     ):
         if getattr(settings, field_name) < 0:
             raise SettingsError(

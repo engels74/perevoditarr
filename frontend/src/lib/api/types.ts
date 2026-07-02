@@ -34,6 +34,44 @@ export type FreshnessRead = Schemas['FreshnessRead'];
 export type DoctorRunRead = Schemas['DoctorRunRead'];
 export type DoctorFindingRead = Schemas['DoctorFindingRead'];
 
+// Policy (P2-T6)
+export type PresetRead = Schemas['PresetRead'];
+export type PresetCreate = Schemas['PresetCreate'];
+export type PresetUpdate = Schemas['PresetUpdate'];
+export type PresetFork = Schemas['PresetFork'];
+export type TranslationProfileRead = Schemas['TranslationProfileRead'];
+export type TranslationProfileCreate = Schemas['TranslationProfileCreate'];
+export type TranslationProfileUpdate = Schemas['TranslationProfileUpdate'];
+export type ProfileEditorResponse = Schemas['ProfileEditorResponse'];
+export type ProfileValidateRequest = Schemas['ProfileValidateRequest'];
+export type ProfileValidateResponse = Schemas['ProfileValidateResponse'];
+export type PolicyFindingRead = Schemas['PolicyFindingRead'];
+export type PolicyValuesDto = Schemas['PolicyValuesDto'];
+export type PolicyValuesRequest = Schemas['PolicyValuesRequest'];
+export type ProfileAssignmentRead = Schemas['ProfileAssignmentRead'];
+export type ProfileAssignmentCreate = Schemas['ProfileAssignmentCreate'];
+export type ExclusionRead = Schemas['ExclusionRead'];
+export type ExclusionCreate = Schemas['ExclusionCreate'];
+export type OverrideRead = Schemas['OverrideRead'];
+export type OverrideUpsert = Schemas['OverrideUpsert'];
+export type EffectivePolicyRead = Schemas['EffectivePolicyRead'];
+export type PolicyExport = Schemas['PolicyExport'];
+export type PolicyImportRequest = Schemas['PolicyImportRequest'];
+export type PolicyImportResult = Schemas['PolicyImportResult'];
+
+// Intents & plan preview (P2-T6)
+export type IntentRead = Schemas['IntentRead'];
+export type IntentDetail = Schemas['IntentDetail'];
+export type IntentEventRead = Schemas['IntentEventRead'];
+export type ExplainRead = Schemas['ExplainRead'];
+export type PlanPreviewResponse = Schemas['PlanPreviewResponse'];
+export type PlanItemDto = Schemas['PlanItemDto'];
+export type PlanGroupDto = Schemas['PlanGroupDto'];
+export type PlanTotalsDto = Schemas['PlanTotalsDto'];
+export type IncludedVerdictDto = Schemas['IncludedVerdictDto'];
+export type HeldVerdictDto = Schemas['HeldVerdictDto'];
+export type VolumeEstimateDto = Schemas['VolumeEstimateDto'];
+
 // Error problem body (core/errors.py) — not part of the OpenAPI components.
 export interface Problem {
 	status: number;

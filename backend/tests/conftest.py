@@ -38,6 +38,8 @@ def app_settings(tmp_path: Path) -> AppSettings:
         sync_interval_seconds=0,
         wanted_interval_seconds=0,
         doctor_interval_seconds=0,
+        discovery_interval_seconds=0,
+        reconcile_interval_seconds=0,
     )
 
 

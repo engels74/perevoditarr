@@ -4,6 +4,10 @@ tolerant decoding."""
 
 from datetime import UTC, datetime
 
+import msgspec
+import pytest
+
+from perevoditarr.modules.rails.schemas import SchedulingWindowInput
 from perevoditarr.modules.rails.windows import (
     SchedulingWindow,
     decode_windows,
@@ -90,3 +94,22 @@ def test_unknown_timezone_falls_back_to_utc_not_always_open() -> None:
     window = SchedulingWindow(start="09:00", end="17:00", timezone="Mars/Olympus")
     assert window_matches(window, datetime(2026, 1, 5, 12, 0, tzinfo=UTC)) is True
     assert window_matches(window, datetime(2026, 1, 5, 3, 0, tzinfo=UTC)) is False
+
+
+@pytest.mark.parametrize("value", ["00:00", "23:59", "24:00"])
+def test_scheduling_window_input_accepts_valid_times(value: str) -> None:
+    # HourMinute must admit the whole 00:00-24:00 range, including the 24:00
+    # end-of-day sentinel that _parse_minutes treats as 1440 (valid).
+    payload = msgspec.json.encode({"start": value, "end": value})
+    decoded = msgspec.json.decode(payload, type=SchedulingWindowInput)
+    assert decoded.start == value
+    assert decoded.end == value
+
+
+@pytest.mark.parametrize("value", ["24:01", "24:30", "24:59", "25:00"])
+def test_scheduling_window_input_rejects_out_of_range_times(value: str) -> None:
+    # 24:01-24:59 are structurally past midnight: _parse_minutes would raise and
+    # the entry would be silently dropped, so reject them at the decode boundary.
+    payload = msgspec.json.encode({"start": value})
+    with pytest.raises(msgspec.ValidationError):
+        _ = msgspec.json.decode(payload, type=SchedulingWindowInput)

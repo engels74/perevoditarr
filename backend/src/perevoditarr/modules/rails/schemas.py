@@ -22,7 +22,7 @@ from perevoditarr.modules.rails.windows import SchedulingWindow
 
 type RailScope = Literal["global", "instance"]
 
-HourMinute = Annotated[str, msgspec.Meta(pattern=r"^([01]?\d|2[0-4]):[0-5]\d$")]
+HourMinute = Annotated[str, msgspec.Meta(pattern=r"^([01]?\d|2[0-3]):[0-5]\d$|^24:00$")]
 Weekday = Annotated[int, msgspec.Meta(ge=0, le=6)]
 
 

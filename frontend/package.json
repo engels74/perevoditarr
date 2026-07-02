@@ -12,7 +12,8 @@
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"test": "bun test",
 		"lint": "biome check .",
-		"format": "biome check --write ."
+		"format": "biome check --write .",
+		"generate:api": "uv run --project ../backend perevoditarr export-openapi --out openapi.gen.json && bunx openapi-typescript openapi.gen.json -o src/lib/api/types.gen.ts && rm openapi.gen.json"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.5.1",
@@ -26,6 +27,7 @@
 		"@unocss/extractor-svelte": "^66.7.4",
 		"@unocss/preset-wind4": "^66.7.4",
 		"bun-plugin-svelte": "^0.0.6",
+		"openapi-typescript": "^7.13.0",
 		"svelte": "^5.56.1",
 		"svelte-check": "^4.6.0",
 		"typescript": "^6.0.3",

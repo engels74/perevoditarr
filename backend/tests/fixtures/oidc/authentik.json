@@ -1,0 +1,16 @@
+{
+  "issuer": "https://idp.test/application/o/perevoditarr/",
+  "authorization_endpoint": "https://idp.test/application/o/authorize/",
+  "token_endpoint": "https://idp.test/application/o/token/",
+  "userinfo_endpoint": "https://idp.test/application/o/userinfo/",
+  "end_session_endpoint": "https://idp.test/application/o/perevoditarr/end-session/",
+  "jwks_uri": "https://idp.test/application/o/perevoditarr/jwks/",
+  "response_types_supported": ["code", "id_token", "id_token token", "code token", "code id_token", "code id_token token"],
+  "grant_types_supported": ["authorization_code", "refresh_token", "implicit", "client_credentials", "password"],
+  "id_token_signing_alg_values_supported": ["RS256"],
+  "subject_types_supported": ["public"],
+  "token_endpoint_auth_methods_supported": ["client_secret_post", "client_secret_basic"],
+  "code_challenge_methods_supported": ["plain", "S256"],
+  "scopes_supported": ["openid", "email", "profile"],
+  "claims_supported": ["sub", "iss", "aud", "exp", "iat", "auth_time", "acr", "amr", "nonce", "email", "email_verified", "name", "given_name", "preferred_username", "nickname", "groups"]
+}

@@ -35,12 +35,59 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - uses: oven-sh/setup-bun@v2
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
       - run: bun install --frozen-lockfile
       # check runs svelte-kit sync first — also needed for $lib resolution in bun test
       - run: bun run check
       - run: bun run lint
       - run: bun test
       - run: bun --bun vite build
+      # generated API types must match the backend schema (P1-T7 drift check)
+      - run: bun run generate:api
+      - run: git diff --exit-code -- src/lib/api/types.gen.ts
+
+  migrations:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        database: [sqlite, postgres]
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: perevoditarr
+          POSTGRES_PASSWORD: perevoditarr
+          POSTGRES_DB: perevoditarr
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U perevoditarr"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+      - run: uv sync --frozen
+      # both engines must migrate cleanly, up and down (NFR-2)
+      - run: |
+          if [ "${{ matrix.database }}" = "postgres" ]; then
+            export PEREVODITARR_DATABASE_URL="postgresql+asyncpg://perevoditarr:perevoditarr@localhost:5432/perevoditarr"
+          else
+            export PEREVODITARR_DATABASE_URL="sqlite+aiosqlite:///./migration-ci.db"
+          fi
+          uv run alembic upgrade head
+          uv run alembic downgrade base
+          uv run alembic upgrade head
 
   hooks:
     runs-on: ubuntu-latest

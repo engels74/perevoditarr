@@ -46,5 +46,8 @@
 				}
 			}
 		}
-	]
+	],
+	"files": {
+		"includes": ["**", "!src/lib/api/types.gen.ts", "!.omc"]
+	}
 }

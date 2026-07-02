@@ -170,72 +170,72 @@ These are distilled from the rules files and PRD §2/§6. Violations are review 
 ## Phase 1 — M0 Observer
 
 ### P1-T1 · Core backend infrastructure
-- [ ] Typed app settings: msgspec `Struct` loaded from env (DB URL, bind, secret key, log level, trusted proxies); fail-fast validation at boot.
-- [ ] `SQLAlchemyPlugin` with `SQLAlchemyAsyncConfig` (asyncpg default; aiosqlite honored when configured), `AsyncSessionConfig(expire_on_commit=False)`, `create_all=False`.
-- [ ] Declarative base on Advanced Alchemy (`UUIDAuditBase`; decide `UUIDv7AuditBase` for append-heavy tables — mirror rows, `intent_event` — in tech design; record in ADR-0005) with **naming conventions on `MetaData`** per rules doc; `AsyncAttrs` mixin; repo-wide `lazy="raise"` default.
-- [ ] Alembic `init -t async`; import all model modules in `env.py`; first migration; verify SQLite + Postgres both migrate cleanly in CI (matrix).
-- [ ] `StructlogPlugin` + JSON renderer in prod / console in dev; contextvars middleware binding `request_id`; error-handler mapping domain exceptions → typed problem responses.
-- [ ] Lifespan: create/close shared `httpx.AsyncClient`s (per registered instance, pooled; explicit `Timeout` + `Limits`; **retries disabled** — assert `AsyncHTTPTransport(retries=0)`).
-- [ ] Core SSE bus (`core/sse.py`): in-process pub/sub → Litestar `ServerSentEvent` endpoint `/api/v1/events` with topic filtering; heartbeat; used by all later modules.
-- [ ] `OpenAPIConfig` (title/version, `ScalarRenderPlugin`); global DTO/rename policy: `rename_strategy="camel"` at the DTO layer so the TS client sees camelCase.
+- [x] Typed app settings: msgspec `Struct` loaded from env (DB URL, bind, secret key, log level, trusted proxies); fail-fast validation at boot.
+- [x] `SQLAlchemyPlugin` with `SQLAlchemyAsyncConfig` (asyncpg default; aiosqlite honored when configured), `AsyncSessionConfig(expire_on_commit=False)`, `create_all=False`.
+- [x] Declarative base on Advanced Alchemy (`UUIDAuditBase`; decide `UUIDv7AuditBase` for append-heavy tables — mirror rows, `intent_event` — in tech design; record in ADR-0005) with **naming conventions on `MetaData`** per rules doc; `AsyncAttrs` mixin; repo-wide `lazy="raise"` default.
+- [x] Alembic `init -t async`; import all model modules in `env.py`; first migration; verify SQLite + Postgres both migrate cleanly in CI (matrix).
+- [x] `StructlogPlugin` + JSON renderer in prod / console in dev; contextvars middleware binding `request_id`; error-handler mapping domain exceptions → typed problem responses.
+- [x] Lifespan: create/close shared `httpx.AsyncClient`s (per registered instance, pooled; explicit `Timeout` + `Limits`; **retries disabled** — assert `AsyncHTTPTransport(retries=0)`).
+- [x] Core SSE bus (`core/sse.py`): in-process pub/sub → Litestar `ServerSentEvent` endpoint `/api/v1/events` with topic filtering; heartbeat; used by all later modules.
+- [x] `OpenAPIConfig` (title/version, `ScalarRenderPlugin`); global DTO/rename policy: `rename_strategy="camel"` at the DTO layer so the TS client sees camelCase.
 
 ### P1-T2 · Auth module (FR-A1–A3, A5; FR-API3)
-- [ ] Models: `user`, `api_key` (hashed), `auth_provider_config`; Argon2id password hashing (`argon2-cffi`).
-- [ ] Session auth via `litestar.security.jwt` `JWTCookieAuth` (`retrieve_user_handler`, exclusions for `/login`, `/setup`, `/schema`, static); CSRF config for cookie flows.
-- [ ] First-run setup flow: no users ⇒ API exposes only `/api/v1/setup`; creates initial admin.
-- [ ] API-key guard for programmatic access (header), same authorization model as sessions.
-- [ ] OIDC (Authlib): discovery, auth-code + PKCE, user provisioning/linking; tested against Authentik and Authelia configs (documented fixtures).
-- [ ] Forward-auth mode: trusted-proxy CIDR allowlist + `Remote-User`(/`Remote-Email`) header mapping; hard-fail if enabled without trusted proxies configured.
-- [ ] Secrets-at-rest encryption utility (`cryptography`, key from env) used by instance credentials and provider configs; masked serialization (write-only fields via `dto_field("private")` / dedicated write structs).
-- [ ] Tests: login/refresh/logout, API-key auth, forward-auth spoof rejection, OIDC callback (mocked IdP), setup-flow lockout.
+- [x] Models: `user`, `api_key` (hashed), `auth_provider_config`; Argon2id password hashing (`argon2-cffi`).
+- [x] Session auth via `litestar.security.jwt` `JWTCookieAuth` (`retrieve_user_handler`, exclusions for `/login`, `/setup`, `/schema`, static); CSRF config for cookie flows.
+- [x] First-run setup flow: no users ⇒ API exposes only `/api/v1/setup`; creates initial admin.
+- [x] API-key guard for programmatic access (header), same authorization model as sessions.
+- [x] OIDC (Authlib): discovery, auth-code + PKCE, user provisioning/linking; tested against Authentik and Authelia configs (documented fixtures).
+- [x] Forward-auth mode: trusted-proxy CIDR allowlist + `Remote-User`(/`Remote-Email`) header mapping; hard-fail if enabled without trusted proxies configured.
+- [x] Secrets-at-rest encryption utility (`cryptography`, key from env) used by instance credentials and provider configs; masked serialization (write-only fields via `dto_field("private")` / dedicated write structs).
+- [x] Tests: login/refresh/logout, API-key auth, forward-auth spoof rejection, OIDC callback (mocked IdP), setup-flow lockout.
 
 ### P1-T3 · Bazarr & Lingarr API clients (`modules/integrations/…`)
-- [ ] Typed msgspec response structs for every consumed endpoint (PRD Appendix A); decode at the boundary with `forbid_unknown_fields=False` (tolerate additive upstream changes), constraints where meaningful.
-- [ ] Bazarr client: system status/settings, languages profiles, episodes/movies (+wanted, paged), history (episodes/movies), `PATCH /api/subtitles` translate, system jobs; `X-API-KEY` auth.
-- [ ] **Version gate**: parse Bazarr version, enforce `>= 1.5.6` with typed rejection error (FR-I1).
-- [ ] **Capability probe** (PRD §6.6): per-instance capability record (e.g. `translate_returns_job_id: false`, `lingarr_receives_episode_id: false` — both false today by design); probed on registration + periodic re-check; stored, surfaced in doctor (FR-DR10).
-- [ ] Lingarr client: settings (`GET /api/setting/{key}`, `POST /api/setting/multiple/get` for the doctor's key set incl. `automation_enabled`, service/type/batch/retry/validation keys), translation requests (active/list/detail/cancel/retry/resume/remove), schedule jobs, statistics; `X-Api-Key` auth; version gate against the pinned line (resolve PRD open question #2 here — pin and record).
-- [ ] Lingarr **auto-discovery** from Bazarr settings (`translator_type`, `lingarr_url`, `lingarr_token`) with confirmation flow (FR-I2).
-- [ ] Contract tests against the simulators (P1-T8) for every consumed endpoint.
+- [x] Typed msgspec response structs for every consumed endpoint (PRD Appendix A); decode at the boundary with `forbid_unknown_fields=False` (tolerate additive upstream changes), constraints where meaningful.
+- [x] Bazarr client: system status/settings, languages profiles, episodes/movies (+wanted, paged), history (episodes/movies), `PATCH /api/subtitles` translate, system jobs; `X-API-KEY` auth.
+- [x] **Version gate**: parse Bazarr version, enforce `>= 1.5.6` with typed rejection error (FR-I1).
+- [x] **Capability probe** (PRD §6.6): per-instance capability record (e.g. `translate_returns_job_id: false`, `lingarr_receives_episode_id: false` — both false today by design); probed on registration + periodic re-check; stored, surfaced in doctor (FR-DR10).
+- [x] Lingarr client: settings (`GET /api/setting/{key}`, `POST /api/setting/multiple/get` for the doctor's key set incl. `automation_enabled`, service/type/batch/retry/validation keys), translation requests (active/list/detail/cancel/retry/resume/remove), schedule jobs, statistics; `X-Api-Key` auth; version gate against the pinned line (resolve PRD open question #2 here — pin and record).
+- [x] Lingarr **auto-discovery** from Bazarr settings (`translator_type`, `lingarr_url`, `lingarr_token`) with confirmation flow (FR-I2).
+- [x] Contract tests against the simulators (P1-T8) for every consumed endpoint.
 
 ### P1-T4 · Instances module (FR-I1–I5)
-- [ ] Models: `bazarr_instance`, `lingarr_instance` (N:1 allowed), encrypted credentials, capability + health snapshot columns.
-- [ ] Repository/service via `SQLAlchemyAsyncRepository`/`SQLAlchemyAsyncRepositoryService`; controller CRUD with connection-test endpoint (dry validation before persist).
-- [ ] Health monitor task: reachability, latency, version drift, Bazarr queue depth; snapshots persisted; SSE `instances.health` events.
-- [ ] Per-instance enable/disable flag (dispatch-relevant later).
+- [x] Models: `bazarr_instance`, `lingarr_instance` (N:1 allowed), encrypted credentials, capability + health snapshot columns.
+- [x] Repository/service via `SQLAlchemyAsyncRepository`/`SQLAlchemyAsyncRepositoryService`; controller CRUD with connection-test endpoint (dry validation before persist).
+- [x] Health monitor task: reachability, latency, version drift, Bazarr queue depth; snapshots persisted; SSE `instances.health` events.
+- [x] Per-instance enable/disable flag (dispatch-relevant later).
 
 ### P1-T5 · Library mirror module (FR-M1–M4)
-- [ ] Models: `series`, `episode`, `movie`, `subtitle`, `wanted_subtitle` — instance-scoped, composite indexes designed for the browser's filter/sort paths (coverage per language, title search, recency) at 100k+/300k+ scale (NFR-2/NFR-4).
-- [ ] Sync engine: full resync + incremental scheduled sync (configurable interval); upsert via PostgreSQL `on_conflict_do_update` with dialect-portable fallback; batched pages; per-run `sync_run` record with counters and duration.
-- [ ] Wanted-list sync as its own fast loop (drives discovery later).
-- [ ] Freshness tracking per instance + doctor hook (FR-M4/FR-DR11); SSE `mirror.sync` progress events.
-- [ ] Performance harness: seeded synthetic library (100k episodes) in CI-nightly; assert browse query budgets (NFR-4) on Postgres.
+- [x] Models: `series`, `episode`, `movie`, `subtitle`, `wanted_subtitle` — instance-scoped, composite indexes designed for the browser's filter/sort paths (coverage per language, title search, recency) at 100k+/300k+ scale (NFR-2/NFR-4).
+- [x] Sync engine: full resync + incremental scheduled sync (configurable interval); upsert via PostgreSQL `on_conflict_do_update` with dialect-portable fallback; batched pages; per-run `sync_run` record with counters and duration.
+- [x] Wanted-list sync as its own fast loop (drives discovery later).
+- [x] Freshness tracking per instance + doctor hook (FR-M4/FR-DR11); SSE `mirror.sync` progress events.
+- [x] Performance harness: seeded synthetic library (100k episodes) in CI-nightly; assert browse query budgets (NFR-4) on Postgres.
 
 ### P1-T6 · Doctor v1 (FR-DR1–DR11, read-only)
-- [ ] Check framework: `DoctorCheck` protocol (id, severity, target scope, `run() -> Finding[]`), registry per module, `doctor_run`/`doctor_finding` persistence, on-demand + scheduled + contextual triggers.
-- [ ] Implement FR-DR1…FR-DR11 checks (each with explanation + fix-guidance strings; severity mapping per PRD).
-- [ ] Doctor API: run, latest results, per-instance filtering; SSE completion events.
-- [ ] Unit tests per check with simulator-driven misconfiguration fixtures (e.g. `automation_enabled=true`, missing upgrade setting, target language absent from profiles).
+- [x] Check framework: `DoctorCheck` protocol (id, severity, target scope, `run() -> Finding[]`), registry per module, `doctor_run`/`doctor_finding` persistence, on-demand + scheduled + contextual triggers.
+- [x] Implement FR-DR1…FR-DR11 checks (each with explanation + fix-guidance strings; severity mapping per PRD).
+- [x] Doctor API: run, latest results, per-instance filtering; SSE completion events.
+- [x] Unit tests per check with simulator-driven misconfiguration fixtures (e.g. `automation_enabled=true`, missing upgrade setting, target language absent from profiles).
 
 ### P1-T7 · API v1 surface & TS client
-- [ ] Routers: `/api/v1/{auth,setup,instances,mirror,doctor,events,system}`; consistent pagination envelope (msgspec generic `Page[T]` via PEP 695).
-- [ ] OpenAPI polish: tags, operation ids, examples.
-- [ ] Frontend type generation: `openapi-typescript` from `/schema/openapi.json` into `src/lib/api/types.gen.ts` + thin typed fetch wrapper (`src/lib/api/client.ts`) with auth handling; regeneration script + CI drift check.
+- [x] Routers: `/api/v1/{auth,setup,instances,mirror,doctor,events,system}`; consistent pagination envelope (msgspec generic `Page[T]` via PEP 695).
+- [x] OpenAPI polish: tags, operation ids, examples.
+- [x] Frontend type generation: `openapi-typescript` from `/schema/openapi.json` into `src/lib/api/types.gen.ts` + thin typed fetch wrapper (`src/lib/api/client.ts`) with auth handling; regeneration script + CI drift check.
 
 ### P1-T8 · Test simulators (foundational for all later phases)
-- [ ] **Bazarr simulator**: in-process ASGI app (Litestar) implementing the consumed surface with researched semantics — async translate PATCH (204, no job id), in-memory jobs queue with `concurrent_jobs`, failed/completed caps of 10, wanted/metadata/history/settings/language-profiles, Socket.IO-compatible event emission stub.
-- [ ] **Lingarr simulator**: settings store, translation-request lifecycle, **faithful §6.4 dedup semantics (empty-array on duplicate active identity)** and **§6.5 identity coarseness (series-id-as-arrMediaId, show-title-only)** — these two behaviors are the point of the simulator.
-- [ ] Scenario DSL for tests: seed library, advance time, flip settings, inject failures.
-- [ ] Simulators packaged for reuse in backend integration tests and (later) frontend e2e.
+- [x] **Bazarr simulator**: in-process ASGI app (Litestar) implementing the consumed surface with researched semantics — async translate PATCH (204, no job id), in-memory jobs queue with `concurrent_jobs`, failed/completed caps of 10, wanted/metadata/history/settings/language-profiles, Socket.IO-compatible event emission stub.
+- [x] **Lingarr simulator**: settings store, translation-request lifecycle, **faithful §6.4 dedup semantics (empty-array on duplicate active identity)** and **§6.5 identity coarseness (series-id-as-arrMediaId, show-title-only)** — these two behaviors are the point of the simulator.
+- [x] Scenario DSL for tests: seed library, advance time, flip settings, inject failures.
+- [x] Simulators packaged for reuse in backend integration tests and (later) frontend e2e.
 
 ### P1-T9 · Frontend M0
-- [ ] App shell: nav, auth guard (`+layout` load against session), login page (built-in + OIDC button + forward-auth passthrough), first-run setup wizard.
-- [ ] Shared state modules (`src/lib/state/*.svelte.ts`): session, instances, SSE connection manager (auto-reconnect, topic subscription) — runes classes with getter accessors per rules doc.
-- [ ] **Dashboard** (FR-U1, read-only scope): instance health cards, coverage-per-language, mirror freshness, doctor summary; live via SSE.
-- [ ] **Library browser** (FR-U4 read-only scope): virtualized/paginated tables (mirror-backed), filters (language coverage, missing target, title search), series → episodes drill-down; movie list.
-- [ ] **Instances settings**: register/edit/test Bazarr, confirm auto-discovered Lingarr, health detail.
-- [ ] **Doctor panel**: run + results grouped by severity with fix guidance.
-- [ ] Component tests for state modules (`bun:test`) and critical components (happy-dom + testing-library).
+- [x] App shell: nav, auth guard (`+layout` load against session), login page (built-in + OIDC button + forward-auth passthrough), first-run setup wizard.
+- [x] Shared state modules (`src/lib/state/*.svelte.ts`): session, instances, SSE connection manager (auto-reconnect, topic subscription) — runes classes with getter accessors per rules doc.
+- [x] **Dashboard** (FR-U1, read-only scope): instance health cards, coverage-per-language, mirror freshness, doctor summary; live via SSE.
+- [x] **Library browser** (FR-U4 read-only scope): virtualized/paginated tables (mirror-backed), filters (language coverage, missing target, title search), series → episodes drill-down; movie list.
+- [x] **Instances settings**: register/edit/test Bazarr, confirm auto-discovered Lingarr, health detail.
+- [x] **Doctor panel**: run + results grouped by severity with fix guidance.
+- [x] Component tests for state modules (`bun:test`) and critical components (happy-dom + testing-library).
 
 **Phase 1 / M0 exit (PRD):** register instances (version-gated), browse a 100k-episode mirror smoothly, truthful doctor report, working auth (built-in + OIDC + forward-auth) — zero write actions toward the ecosystem. Quality gates + nightly perf harness green.
 

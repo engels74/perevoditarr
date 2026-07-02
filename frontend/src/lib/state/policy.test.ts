@@ -4,7 +4,7 @@ import type {
 	OverrideRead,
 	PresetRead,
 	ProfileAssignmentRead,
-	ProfileEditorResponse
+	TranslationProfileRead
 } from '$lib/api/types';
 import { createPolicyState, type PolicyApi } from './policy.svelte';
 
@@ -46,7 +46,8 @@ function makeApi(calls: string[]): PolicyApi {
 			presets = presets.filter((entry) => entry.id !== id);
 			return none(undefined);
 		},
-		listProfiles: () => none<ProfileEditorResponse[]>([]),
+		listProfiles: () => none<TranslationProfileRead[]>([]),
+		getProfile: () => Promise.reject(new Error('unused')),
 		createProfile: () => Promise.reject(new Error('unused')),
 		updateProfile: () => Promise.reject(new Error('unused')),
 		deleteProfile: () => none(undefined),

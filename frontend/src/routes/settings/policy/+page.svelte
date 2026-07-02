@@ -16,6 +16,7 @@ import {
 	deleteProfile,
 	exportPolicies,
 	forkPreset,
+	getProfile,
 	importPolicies,
 	listAssignments,
 	listExclusions,
@@ -26,10 +27,11 @@ import {
 	upsertOverride
 } from '$lib/api/endpoints';
 import type {
+	PolicyFindingRead,
 	PolicyImportRequest,
 	PolicyValuesDto,
-	ProfileEditorResponse,
-	TranslationProfileCreate
+	TranslationProfileCreate,
+	TranslationProfileRead
 } from '$lib/api/types';
 import CascadeField from '$lib/components/cascade-field.svelte';
 import SettingsNav from '$lib/components/settings-nav.svelte';
@@ -53,6 +55,7 @@ const policy = createPolicyState({
 	forkPreset,
 	deletePreset,
 	listProfiles,
+	getProfile,
 	createProfile,
 	updateProfile,
 	deleteProfile,
@@ -79,17 +82,24 @@ let editingId = $state<string | null>(null);
 let editorName = $state('');
 let editorDescription = $state('');
 let editorValues = $state<PolicyValuesDto>({});
-let editorFindings = $derived(
-	sortFindings(policy.profiles.find((entry) => entry.profile.id === editingId)?.findings ?? [])
-);
+let editorFindings = $state<PolicyFindingRead[]>([]);
 let saving = $state(false);
 
-function openEditor(entry: ProfileEditorResponse | null): void {
-	editingId = entry?.profile.id ?? null;
-	editorName = entry?.profile.name ?? '';
-	editorDescription = entry?.profile.description ?? '';
-	editorValues = { ...(entry?.profile.values ?? {}) };
+async function openEditor(entry: TranslationProfileRead | null): Promise<void> {
+	editingId = entry?.id ?? null;
+	editorName = entry?.name ?? '';
+	editorDescription = entry?.description ?? '';
+	editorValues = { ...(entry?.values ?? {}) };
+	editorFindings = [];
 	editorOpen = true;
+	if (entry) {
+		// Findings aren't part of the flat profile list — fetch the wrapped
+		// editor response on demand so inline validation still shows.
+		const detail = await policy.profileEditor(entry.id);
+		if (detail && editingId === entry.id) {
+			editorFindings = sortFindings(detail.findings);
+		}
+	}
 }
 
 async function saveEditor(): Promise<void> {
@@ -105,6 +115,7 @@ async function saveEditor(): Promise<void> {
 		// Keep the dialog open on validation findings so the user sees them
 		// inline; close on a clean save.
 		editingId = saved.profile.id;
+		editorFindings = sortFindings(saved.findings);
 		if (saved.findings.length === 0) {
 			editorOpen = false;
 		}
@@ -261,41 +272,32 @@ async function onImportFile(event: Event): Promise<void> {
 	<section class="space-y-2">
 		<div class="flex items-center justify-between">
 			<h2 class="text-lg font-medium">Translation profiles</h2>
-			<Button size="sm" onclick={() => openEditor(null)}>New profile</Button>
+			<Button size="sm" onclick={() => void openEditor(null)}>New profile</Button>
 		</div>
 		<div class="grid gap-3 md:grid-cols-2">
-			{#each policy.profiles as entry (entry.profile.id)}
+			{#each policy.profiles as entry (entry.id)}
 				<Card.Root>
 					<Card.Header class="pb-2">
-						<Card.Title class="flex items-center justify-between text-base">
-							{entry.profile.name}
-							<span class="flex gap-1">
-								{#each sortFindings(entry.findings).slice(0, 3) as finding (finding.code + (finding.instanceName ?? ''))}
-									<Badge variant={severityBadgeVariant(finding.severity)}>
-										{finding.severity}
-									</Badge>
-								{/each}
-							</span>
+						<Card.Title class="text-base">
+							{entry.name}
 						</Card.Title>
-						{#if entry.profile.description}
-							<Card.Description>{entry.profile.description}</Card.Description>
+						{#if entry.description}
+							<Card.Description>{entry.description}</Card.Description>
 						{/if}
 					</Card.Header>
 					<Card.Content class="text-sm text-muted-foreground">
 						<p class="font-mono text-xs">
-							targets: {(entry.profile.values.targetLanguages ?? []).join(', ') || 'inherited'}
-							· {entry.profile.assignmentCount} assignment{entry.profile.assignmentCount === 1
-								? ''
-								: 's'}
+							targets: {(entry.values.targetLanguages ?? []).join(', ') || 'inherited'}
+							· {entry.assignmentCount} assignment{entry.assignmentCount === 1 ? '' : 's'}
 						</p>
 					</Card.Content>
 					<Card.Footer class="flex gap-2">
-						<Button size="sm" variant="outline" onclick={() => openEditor(entry)}>Edit</Button>
+						<Button size="sm" variant="outline" onclick={() => void openEditor(entry)}>Edit</Button>
 						<Button
 							size="sm"
 							variant="ghost"
 							class="text-destructive"
-							onclick={() => void policy.removeProfile(entry.profile.id)}
+							onclick={() => void policy.removeProfile(entry.id)}
 						>
 							<Trash2Icon class="size-4" />
 						</Button>

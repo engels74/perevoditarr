@@ -9,7 +9,7 @@ import {
 	type EffectivePolicyQuery,
 	listProfiles
 } from '$lib/api/endpoints';
-import type { ProfileEditorResponse } from '$lib/api/types';
+import type { TranslationProfileRead } from '$lib/api/types';
 import EffectivePolicyDialog from '$lib/components/effective-policy-dialog.svelte';
 import { Button } from '$lib/components/ui/button';
 import * as Dialog from '$lib/components/ui/dialog';
@@ -30,7 +30,7 @@ let { instanceId, mediaType, externalId, title, monitored, onChanged }: Props = 
 
 let inspectorOpen = $state(false);
 let assignOpen = $state(false);
-let profiles = $state<ProfileEditorResponse[]>([]);
+let profiles = $state<TranslationProfileRead[]>([]);
 let selectedProfileId = $state('');
 let busy = $state(false);
 let error = $state<string | null>(null);
@@ -47,7 +47,7 @@ async function openAssign(): Promise<void> {
 	error = null;
 	assignOpen = true;
 	profiles = await listProfiles();
-	selectedProfileId = profiles[0]?.profile.id ?? '';
+	selectedProfileId = profiles[0]?.id ?? '';
 }
 
 async function submitAssign(): Promise<void> {
@@ -141,8 +141,8 @@ async function exclude(): Promise<void> {
 					class="h-9 rounded-md border border-input bg-background px-2 text-sm"
 					bind:value={selectedProfileId}
 				>
-					{#each profiles as entry (entry.profile.id)}
-						<option value={entry.profile.id}>{entry.profile.name}</option>
+					{#each profiles as entry (entry.id)}
+						<option value={entry.id}>{entry.name}</option>
 					{/each}
 				</select>
 			</div>

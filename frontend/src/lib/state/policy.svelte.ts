@@ -13,6 +13,7 @@ import type {
 	ProfileAssignmentRead,
 	ProfileEditorResponse,
 	TranslationProfileCreate,
+	TranslationProfileRead,
 	TranslationProfileUpdate
 } from '$lib/api/types';
 
@@ -21,7 +22,8 @@ export interface PolicyApi {
 	activatePreset(id: string): Promise<PresetRead>;
 	forkPreset(id: string, name: string): Promise<PresetRead>;
 	deletePreset(id: string): Promise<void>;
-	listProfiles(): Promise<ProfileEditorResponse[]>;
+	listProfiles(): Promise<TranslationProfileRead[]>;
+	getProfile(id: string): Promise<ProfileEditorResponse>;
 	createProfile(input: TranslationProfileCreate): Promise<ProfileEditorResponse>;
 	updateProfile(id: string, patch: TranslationProfileUpdate): Promise<ProfileEditorResponse>;
 	deleteProfile(id: string): Promise<void>;
@@ -40,7 +42,7 @@ export interface PolicyApi {
 
 export function createPolicyState(api: PolicyApi) {
 	let presets = $state<PresetRead[]>([]);
-	let profiles = $state<ProfileEditorResponse[]>([]);
+	let profiles = $state<TranslationProfileRead[]>([]);
 	let assignments = $state<ProfileAssignmentRead[]>([]);
 	let exclusions = $state<ExclusionRead[]>([]);
 	let overrides = $state<OverrideRead[]>([]);
@@ -99,6 +101,18 @@ export function createPolicyState(api: PolicyApi) {
 			presets = await api.listPresets();
 		} catch (cause) {
 			capture(cause);
+		}
+	}
+
+	async function profileEditor(id: string): Promise<ProfileEditorResponse | null> {
+		// Findings are only computed on the single-profile editor endpoint (the
+		// list stays flat), so fetch them on demand when opening the editor.
+		error = null;
+		try {
+			return await api.getProfile(id);
+		} catch (cause) {
+			capture(cause);
+			return null;
 		}
 	}
 
@@ -247,6 +261,7 @@ export function createPolicyState(api: PolicyApi) {
 		activate,
 		fork,
 		removePreset,
+		profileEditor,
 		saveProfile,
 		removeProfile,
 		assign,

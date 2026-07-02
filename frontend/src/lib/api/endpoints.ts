@@ -41,6 +41,7 @@ import type {
 	SeriesRead,
 	SyncRunRead,
 	TranslationProfileCreate,
+	TranslationProfileRead,
 	TranslationProfileUpdate
 } from './types';
 
@@ -320,8 +321,8 @@ export function importPolicies(
 	);
 }
 
-export function listProfiles(fetchFn: FetchLike = fetch): Promise<ProfileEditorResponse[]> {
-	return apiFetch<ProfileEditorResponse[]>('/api/v1/policy/profiles', {}, fetchFn);
+export function listProfiles(fetchFn: FetchLike = fetch): Promise<TranslationProfileRead[]> {
+	return apiFetch<TranslationProfileRead[]>('/api/v1/policy/profiles', {}, fetchFn);
 }
 
 export function createProfile(
@@ -333,6 +334,10 @@ export function createProfile(
 		{ method: 'POST', body: JSON.stringify(input) },
 		fetchFn
 	);
+}
+
+export function getProfile(id: string, fetchFn: FetchLike = fetch): Promise<ProfileEditorResponse> {
+	return apiFetch<ProfileEditorResponse>(`/api/v1/policy/profiles/${id}`, {}, fetchFn);
 }
 
 export function updateProfile(

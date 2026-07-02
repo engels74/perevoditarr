@@ -7,7 +7,7 @@ editor uses.
 """
 
 from datetime import datetime
-from typing import Literal
+from typing import Literal, assert_never
 from uuid import UUID
 
 from perevoditarr.core.schemas import ApiStruct
@@ -113,6 +113,10 @@ def _verdict_dto(item: PlanItem) -> IncludedVerdictDto | HeldVerdictDto:
             return HeldVerdictDto(rail=rail, detail=detail)
         case HeldByLimit(detail=detail):
             return HeldVerdictDto(rail="limit", detail=detail)
+    # Compile-time exhaustiveness: adding a PlanVerdict variant without a
+    # DTO arm fails basedpyright here (mirrors trace.render_step); `verdict`
+    # narrows to Never only when every variant returned above.
+    assert_never(item.verdict)
 
 
 def plan_item_dto(item: PlanItem) -> PlanItemDto:

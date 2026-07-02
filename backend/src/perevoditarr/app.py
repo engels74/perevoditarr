@@ -56,6 +56,12 @@ from perevoditarr.modules.dispatch import (
     DispatchController,
     provide_plan_preview_service,
 )
+from perevoditarr.modules.dispatch.scheduler import (
+    dispatch_loop,
+    run_dispatch,
+    run_verification,
+    verify_loop,
+)
 from perevoditarr.modules.doctor import (
     DoctorController,
     DoctorService,
@@ -70,9 +76,11 @@ from perevoditarr.modules.instances import (
 )
 from perevoditarr.modules.intents import (
     IntentsController,
+    QuarantineController,
     discovery_loop,
     provide_discovery_service,
     provide_intents_service,
+    provide_quarantine_service,
     reconcile_loop,
     run_discovery,
     run_reconciliation,
@@ -85,7 +93,15 @@ from perevoditarr.modules.mirror import (
     provide_mirror_sync_service,
     wanted_sync_loop,
 )
+from perevoditarr.modules.notifications import (
+    NotificationCoalescer,
+    NotificationMessage,
+    NotificationsController,
+    NotificationsService,
+    provide_notifications_service,
+)
 from perevoditarr.modules.policy import PolicyController, provide_policy_service
+from perevoditarr.modules.rails import RailsController, provide_rails_service
 
 SPA_DIR_ENV = "PEREVODITARR_SPA_DIR"
 
@@ -211,6 +227,9 @@ def create_app(settings: AppSettings | None = None) -> Litestar:
     # never run discovery/reconciliation for the same instance concurrently
     # (the ledger upsert is SELECT-then-INSERT; interleaved passes race it).
     instance_locks = InstanceLockRegistry()
+    # Process-singleton notification coalescer shared by the controller DI and
+    # the background forwarders (P3-T5): per-(route, event) spam suppression.
+    notification_coalescer = NotificationCoalescer()
 
     def _make_wanted_sync_hook(gateway: InstanceGateway) -> WantedSyncCompleted:
         # Wanted-sync completion ⇒ discovery, then reconciliation, for that
@@ -233,6 +252,32 @@ def create_app(settings: AppSettings | None = None) -> Litestar:
                 sse_bus,
                 instance_id=instance_id,
                 locks=instance_locks,
+            )
+            # Verify first (frees slots by converging/failing in-flight intents),
+            # then top-up (P3-T2/T3): newly-eligible intents get a dispatch pass
+            # immediately, not only on the periodic loops.
+            await run_verification(
+                alchemy_config,
+                gateway,
+                secret_box,
+                sse_bus,
+                max_attempts=resolved.dispatch_max_attempts,
+                retry_base_seconds=resolved.dispatch_retry_base_seconds,
+                retry_cap_seconds=resolved.dispatch_retry_cap_seconds,
+                instance_id=instance_id,
+                locks=instance_locks,
+                notification_coalescer=notification_coalescer,
+            )
+            await run_dispatch(
+                alchemy_config,
+                gateway,
+                secret_box,
+                sse_bus,
+                lease_seconds=resolved.dispatch_lease_seconds,
+                backpressure_pending=resolved.dispatch_backpressure_pending,
+                instance_id=instance_id,
+                locks=instance_locks,
+                notification_coalescer=notification_coalescer,
             )
 
         return hook
@@ -259,6 +304,23 @@ def create_app(settings: AppSettings | None = None) -> Litestar:
             )
         except Exception as error:
             get_logger().warning("startup re-observation failed", error=str(error))
+        # Startup re-verification (FR-R4): dispatched intents that converged or
+        # failed while we were down are retroactively resolved from durable
+        # evidence before any new dispatch — crash safety is re-observation.
+        try:
+            await run_verification(
+                alchemy_config,
+                gateway,
+                secret_box,
+                sse_bus,
+                max_attempts=resolved.dispatch_max_attempts,
+                retry_base_seconds=resolved.dispatch_retry_base_seconds,
+                retry_cap_seconds=resolved.dispatch_retry_cap_seconds,
+                locks=instance_locks,
+                notification_coalescer=notification_coalescer,
+            )
+        except Exception as error:
+            get_logger().warning("startup re-verification failed", error=str(error))
         if resolved.health_interval_seconds > 0:
             tasks.append(
                 asyncio.create_task(
@@ -322,6 +384,41 @@ def create_app(settings: AppSettings | None = None) -> Litestar:
                     )
                 )
             )
+        if resolved.dispatch_interval_seconds > 0:
+            tasks.append(
+                asyncio.create_task(
+                    dispatch_loop(
+                        alchemy_config,
+                        gateway,
+                        secret_box,
+                        sse_bus,
+                        resolved.dispatch_interval_seconds,
+                        lease_seconds=resolved.dispatch_lease_seconds,
+                        backpressure_pending=resolved.dispatch_backpressure_pending,
+                        locks=instance_locks,
+                        notification_coalescer=notification_coalescer,
+                    )
+                )
+            )
+        if resolved.verify_interval_seconds > 0:
+            tasks.append(
+                asyncio.create_task(
+                    verify_loop(
+                        alchemy_config,
+                        gateway,
+                        secret_box,
+                        sse_bus,
+                        resolved.verify_interval_seconds,
+                        max_attempts=resolved.dispatch_max_attempts,
+                        retry_base_seconds=resolved.dispatch_retry_base_seconds,
+                        retry_cap_seconds=resolved.dispatch_retry_cap_seconds,
+                        locks=instance_locks,
+                        notification_coalescer=notification_coalescer,
+                    )
+                )
+            )
+        if resolved.digest_interval_seconds > 0:
+            tasks.append(asyncio.create_task(_digest_loop()))
         if resolved.doctor_interval_seconds > 0:
             tasks.append(asyncio.create_task(_doctor_schedule_loop(gateway)))
         try:
@@ -350,11 +447,44 @@ def create_app(settings: AppSettings | None = None) -> Litestar:
                             and not auth_runtime.trusted_networks
                         ),
                     )
-                    _ = await service.run("scheduled")
+                    result = await service.run("scheduled")
+                    critical = [
+                        finding
+                        for finding in result.findings
+                        if finding.severity == "critical"
+                    ]
+                    if critical:
+                        notifications = NotificationsService(
+                            session, secret_box, notification_coalescer
+                        )
+                        _ = await notifications.notify(
+                            NotificationMessage(
+                                event="doctor_critical",
+                                title="Doctor found critical issues",
+                                body=(
+                                    f"{len(critical)} critical finding(s): "
+                                    + "; ".join(f.message for f in critical[:3])
+                                ),
+                            )
+                        )
             except asyncio.CancelledError:
                 raise
             except Exception as error:
                 get_logger().warning("scheduled doctor run failed", error=str(error))
+
+    async def _digest_loop() -> None:
+        while True:
+            await asyncio.sleep(resolved.digest_interval_seconds)
+            try:
+                async with alchemy_config.get_session() as session:
+                    service = NotificationsService(
+                        session, secret_box, notification_coalescer
+                    )
+                    _ = await service.send_digest()
+            except asyncio.CancelledError:
+                raise
+            except Exception as error:
+                get_logger().warning("notification digest failed", error=str(error))
 
     async def _load_auth_providers() -> None:
         try:
@@ -379,6 +509,9 @@ def create_app(settings: AppSettings | None = None) -> Litestar:
             PolicyController,
             IntentsController,
             DispatchController,
+            RailsController,
+            QuarantineController,
+            NotificationsController,
         ],
     )
     route_handlers: list[Router] = [api_v1]
@@ -437,6 +570,12 @@ def create_app(settings: AppSettings | None = None) -> Litestar:
             "intents_service": Provide(provide_intents_service),
             "discovery_service": Provide(provide_discovery_service),
             "plan_preview_service": Provide(provide_plan_preview_service),
+            "rails_service": Provide(provide_rails_service),
+            "quarantine_service": Provide(provide_quarantine_service),
+            "notification_coalescer": Provide(
+                _singleton(notification_coalescer), sync_to_thread=False
+            ),
+            "notifications_service": Provide(provide_notifications_service),
             "wanted_sync_hook": Provide(provide_wanted_sync_hook, sync_to_thread=False),
         },
         openapi_config=OpenAPIConfig(

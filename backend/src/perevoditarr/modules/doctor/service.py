@@ -26,6 +26,7 @@ from perevoditarr.modules.instances.models import BazarrInstance
 from perevoditarr.modules.instances.schemas import BazarrCapabilities
 from perevoditarr.modules.mirror.models import SyncRun
 from perevoditarr.modules.policy import PolicyService
+from perevoditarr.modules.rails.models import RailState
 
 type DoctorTrigger = Literal["manual", "scheduled", "contextual"]
 
@@ -129,8 +130,35 @@ class DoctorService:
             return False, None
         return True, last.finished_at
 
+    async def _default_window_k(self) -> int:
+        policy = PolicyService(self.session, self.secret_box, self.gateway)
+        preset = await policy.active_preset()
+        if preset is None:
+            return 2
+        return policy.preset_rails(preset).dispatch_window_k or 2
+
+    async def _rail_snapshot(
+        self, instance_id: UUID, default_k: int
+    ) -> tuple[int, str, int]:
+        """Read-only rail snapshot (N4): never creates a rail_state row."""
+        row = (
+            await self.session.scalars(
+                select(RailState).where(RailState.bazarr_instance_id == instance_id)
+            )
+        ).first()
+        if row is None:
+            return default_k, "closed", 0
+        window_k = row.window_k if row.window_k is not None else default_k
+        state = (
+            row.breaker_state
+            if row.breaker_state in ("closed", "open", "half_open")
+            else "closed"
+        )
+        return window_k, state, row.breaker_consecutive_failures
+
     async def build_context(self) -> DoctorContext:
         instances_service = InstancesService(self.session, self.secret_box)
+        default_k = await self._default_window_k()
         contexts: list[BazarrContext] = []
         for instance in await instances_service.list_bazarr():
             if not instance.enabled:
@@ -139,6 +167,9 @@ class DoctorService:
                 instance.url, instances_service.bazarr_api_key(instance)
             )
             synced_ever, last_sync = await self._mirror_freshness(instance.id)
+            window_k, breaker_state, breaker_failures = await self._rail_snapshot(
+                instance.id, default_k
+            )
             base = BazarrContext(
                 instance_id=instance.id,
                 name=instance.name,
@@ -147,6 +178,9 @@ class DoctorService:
                 capabilities=_decode_capabilities(instance.capabilities),
                 mirror_synced_ever=synced_ever,
                 last_sync_finished_at=last_sync,
+                dispatch_window_k=window_k,
+                breaker_state=breaker_state,
+                breaker_consecutive_failures=breaker_failures,
             )
             try:
                 status = await client.system_status()

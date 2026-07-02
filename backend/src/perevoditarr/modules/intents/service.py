@@ -35,8 +35,10 @@ from perevoditarr.modules.intents.schemas import (
     IntentRead,
 )
 from perevoditarr.modules.intents.state_machine import (
+    IN_FLIGHT_STATES,
     TERMINAL_STATES,
     IntentState,
+    assert_manual_transition,
     assert_transition,
 )
 from perevoditarr.modules.intents.trace import (
@@ -226,6 +228,50 @@ class IntentsService:
             await self.session.commit()
         return intent
 
+    async def manual_transition(
+        self,
+        intent: Intent,
+        to_state: IntentState,
+        *,
+        actor: str,
+        reason: str,
+        commit: bool = True,
+    ) -> Intent:
+        """Operator-driven quarantine actions (FR-R6): retry (→ eligible) or
+        release/exclude (→ superseded). Validated against MANUAL_TRANSITIONS so
+        automated processes can never take these edges."""
+        from_state = IntentState(intent.state)
+        assert_manual_transition(from_state, to_state)
+        intent.state = to_state.value
+        if to_state in TERMINAL_STATES:
+            intent.lease_expires_at = None
+        self.session.add(
+            IntentEvent(
+                intent_id=intent.id,
+                actor=actor,
+                from_state=from_state.value,
+                to_state=to_state.value,
+                reason=reason,
+                evidence=None,
+            )
+        )
+        if commit:
+            await self.session.commit()
+        return intent
+
+    async def count_dispatches(self, intent_id: UUID) -> int:
+        """How many times this intent has been dispatched (event-derived) — the
+        attempt count the retry/quarantine policy keys on (restart-safe)."""
+        stmt = (
+            select(func.count())
+            .select_from(IntentEvent)
+            .where(
+                IntentEvent.intent_id == intent_id,
+                IntentEvent.to_state == IntentState.DISPATCHED.value,
+            )
+        )
+        return (await self.session.execute(stmt)).scalar_one()
+
     # ------------------------------------------------------------ reads
 
     async def get(self, intent_id: UUID) -> Intent:
@@ -290,6 +336,30 @@ class IntentsService:
             created_before=created_before,
         )
         return await self._page(stmt, limit, offset)
+
+    async def count_in_flight(self, bazarr_instance_id: UUID) -> int:
+        """Live dispatched-intent count for one instance (dispatch-window fill)."""
+        stmt = (
+            select(func.count())
+            .select_from(Intent)
+            .where(
+                Intent.bazarr_instance_id == bazarr_instance_id,
+                Intent.state.in_(sorted(s.value for s in IN_FLIGHT_STATES)),
+            )
+        )
+        return (await self.session.execute(stmt)).scalar_one()
+
+    async def in_flight_rows(self, bazarr_instance_id: UUID) -> Sequence[Intent]:
+        """Raw dispatched intents for one instance — the dispatcher builds the
+        §6.5 in-flight pair index from these."""
+        return (
+            await self.session.scalars(
+                select(Intent).where(
+                    Intent.bazarr_instance_id == bazarr_instance_id,
+                    Intent.state.in_(sorted(s.value for s in IN_FLIGHT_STATES)),
+                )
+            )
+        ).all()
 
     async def has_in_flight_series_pair(
         self,

@@ -55,6 +55,11 @@ class BazarrContext(msgspec.Struct, kw_only=True):
     lingarr: LingarrContext | None = None
     mirror_synced_ever: bool = False
     last_sync_finished_at: datetime | None = None
+    # Rails posture (P3-T6): effective dispatch window K and breaker state, for
+    # the headroom sanity check and breaker surfacing.
+    dispatch_window_k: int = 2
+    breaker_state: str = "closed"
+    breaker_consecutive_failures: int = 0
 
 
 class DoctorContext(msgspec.Struct, kw_only=True):

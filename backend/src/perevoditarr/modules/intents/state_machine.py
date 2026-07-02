@@ -62,6 +62,14 @@ TERMINAL_STATES: frozenset[IntentState] = frozenset(
     state for state, targets in TRANSITIONS.items() if not targets
 )
 
+# Manual-only transitions (FR-R6): a quarantined intent stays terminal for every
+# automated process (discovery/dispatch/reconciliation never re-open it), but an
+# operator may retry it (→ eligible) or release/exclude it (→ superseded). Kept
+# separate from TRANSITIONS so quarantine never leaks into the auto lifecycle.
+MANUAL_TRANSITIONS: Mapping[IntentState, frozenset[IntentState]] = {
+    IntentState.QUARANTINED: frozenset({IntentState.ELIGIBLE, IntentState.SUPERSEDED}),
+}
+
 
 class IllegalIntentTransition(Exception):
     """Raised on any transition the table does not allow.
@@ -83,4 +91,13 @@ def can_transition(from_state: IntentState, to_state: IntentState) -> bool:
 
 def assert_transition(from_state: IntentState, to_state: IntentState) -> None:
     if not can_transition(from_state, to_state):
+        raise IllegalIntentTransition(from_state, to_state)
+
+
+def can_manual_transition(from_state: IntentState, to_state: IntentState) -> bool:
+    return to_state in MANUAL_TRANSITIONS.get(from_state, frozenset())
+
+
+def assert_manual_transition(from_state: IntentState, to_state: IntentState) -> None:
+    if not can_manual_transition(from_state, to_state):
         raise IllegalIntentTransition(from_state, to_state)

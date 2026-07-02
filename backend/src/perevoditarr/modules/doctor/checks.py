@@ -20,10 +20,6 @@ from perevoditarr.modules.policy import (
     validate_profile_values,
 )
 
-# Phase 3 introduces the configurable dispatch window; until then the doctor
-# reasons about the shipped default (PRD §7.2).
-DEFAULT_DISPATCH_WINDOW = 2
-
 # §6.3: Bazarr converts these before calling Lingarr (single-sourced in policy).
 _CODE_CONVERSIONS = CODE2_CONVERSIONS
 
@@ -484,7 +480,8 @@ class SubtitleValidationLimitsCheck:
 
 @register
 class ConcurrencyHeadroomCheck:
-    """FR-DR8: Bazarr concurrent_jobs vs the dispatch window K."""
+    """FR-DR8 (live, P3-T6): Bazarr concurrent_jobs vs the *effective* dispatch
+    window K (per-instance override or active-preset default)."""
 
     check_id: str = "FR-DR8"
 
@@ -494,7 +491,8 @@ class ConcurrencyHeadroomCheck:
             general = instance.settings.general if instance.settings else None
             if general is None or general.concurrent_jobs is None:
                 continue
-            if general.concurrent_jobs <= DEFAULT_DISPATCH_WINDOW:
+            window_k = instance.dispatch_window_k
+            if general.concurrent_jobs <= window_k:
                 findings.append(
                     Finding(
                         check_id=self.check_id,
@@ -502,23 +500,66 @@ class ConcurrencyHeadroomCheck:
                         message=(
                             f"Bazarr '{instance.name}' concurrent_jobs="
                             f"{general.concurrent_jobs} leaves no headroom over "
-                            f"the dispatch window (K={DEFAULT_DISPATCH_WINDOW})"
+                            f"the dispatch window (K={window_k})"
                         ),
                         explanation=(
                             "Bazarr's queue is shared with syncs and searches "
-                            "(§6.2); translation dispatches could monopolize it."
+                            "(§6.2); translation dispatches could monopolize it. "
+                            "The dispatcher leaves one slot below concurrent_jobs "
+                            "(§7.2), so K must stay under it."
                         ),
                         fix_guidance=(
-                            "Raise concurrent_jobs in Bazarr or lower "
-                            "Perevoditarr's dispatch window once configurable."
+                            "Raise concurrent_jobs in Bazarr, or lower "
+                            "Perevoditarr's dispatch window K for this instance."
                         ),
                         bazarr_instance_id=instance.instance_id,
                         data={
                             "concurrentJobs": general.concurrent_jobs,
-                            "dispatchWindow": DEFAULT_DISPATCH_WINDOW,
+                            "dispatchWindow": window_k,
                         },
                     )
                 )
+        return findings
+
+
+@register
+class CircuitBreakerStateCheck:
+    """P3-T6: surface an open/half-open provider circuit breaker (§7.4)."""
+
+    check_id: str = "FR-DR12"
+
+    def run(self, context: DoctorContext) -> list[Finding]:
+        findings: list[Finding] = []
+        for instance in context.instances:
+            if instance.breaker_state == "closed":
+                continue
+            findings.append(
+                Finding(
+                    check_id=self.check_id,
+                    severity="warn",
+                    message=(
+                        f"Circuit breaker is {instance.breaker_state} for "
+                        f"'{instance.name}' after "
+                        f"{instance.breaker_consecutive_failures} consecutive "
+                        "provider failures"
+                    ),
+                    explanation=(
+                        "Dispatch to this instance is paused while Lingarr/the "
+                        "provider appears unhealthy (§7.4); it probes for recovery "
+                        "and auto-closes on success."
+                    ),
+                    fix_guidance=(
+                        "Check Lingarr and its translation provider (quota, "
+                        "connectivity). Dispatch resumes automatically once a "
+                        "probe succeeds."
+                    ),
+                    bazarr_instance_id=instance.instance_id,
+                    data={
+                        "breakerState": instance.breaker_state,
+                        "consecutiveFailures": (instance.breaker_consecutive_failures),
+                    },
+                )
+            )
         return findings
 
 

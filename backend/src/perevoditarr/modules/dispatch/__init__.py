@@ -1,9 +1,12 @@
-"""Dispatch module public interface (P2-T5; the dispatcher joins in P3).
+"""Dispatch module public interface.
 
-Phase 2 scope: the deterministic plan preview — pure planner + estimator over
-the ledger and the active preset's simulated rail posture. The priority
-scorer lives in the policy module (weights are policy values); this module
-consumes the scores the ledger already carries.
+Two layers live here. The *pure/preview* surface — the deterministic planner
+(P2-T5) + estimator over the ledger and the active preset's rail posture — is
+re-exported here and safely consumed by other modules (including rails, which
+reads the sizing heuristics and default window K). The *orchestration* leaf —
+`DispatcherService` (P3-T2) and its scheduler — depends on rails and is imported
+directly from `dispatch.dispatcher` / `dispatch.scheduler` by app wiring, so this
+package's `__init__` stays free of the rails dependency (no import cycle).
 """
 
 from perevoditarr.modules.dispatch.controllers import (

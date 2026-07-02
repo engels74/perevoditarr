@@ -35,6 +35,19 @@ class AppSettings(msgspec.Struct, kw_only=True, frozen=True):
     doctor_interval_seconds: int = 86400
     discovery_interval_seconds: int = 900
     reconcile_interval_seconds: int = 600
+    dispatch_interval_seconds: int = 120
+    verify_interval_seconds: int = 180
+    # Convergence lease: deadline for evidence after a dispatch (> Bazarr's
+    # 1800 s Lingarr timeout, with buffer). P3-T3 verifies against it.
+    dispatch_lease_seconds: int = 2700
+    # Hold top-up when Bazarr's pending job queue is at least this deep (§6.2).
+    dispatch_backpressure_pending: int = 10
+    # Intent-level retry policy (§7.4/FR-R5): attempts before quarantine, and the
+    # exponential backoff base/cap between auto-retries.
+    dispatch_max_attempts: int = 4
+    dispatch_retry_base_seconds: int = 300
+    dispatch_retry_cap_seconds: int = 21600
+    digest_interval_seconds: int = 86400
 
 
 _FIELD_NAMES = frozenset(field.name for field in msgspec.structs.fields(AppSettings))
@@ -85,11 +98,23 @@ def _validate(settings: AppSettings) -> None:
         "doctor_interval_seconds",
         "discovery_interval_seconds",
         "reconcile_interval_seconds",
+        "dispatch_interval_seconds",
+        "verify_interval_seconds",
+        "digest_interval_seconds",
     ):
         if getattr(settings, field_name) < 0:
             raise SettingsError(
                 f"{ENV_PREFIX}{field_name.upper()} must be >= 0 (0 disables)"
             )
+    for positive_field in (
+        "dispatch_lease_seconds",
+        "dispatch_backpressure_pending",
+        "dispatch_max_attempts",
+        "dispatch_retry_base_seconds",
+        "dispatch_retry_cap_seconds",
+    ):
+        if getattr(settings, positive_field) < 1:
+            raise SettingsError(f"{ENV_PREFIX}{positive_field.upper()} must be >= 1")
     for cidr in settings.trusted_proxies:
         try:
             _ = ipaddress.ip_network(cidr, strict=False)

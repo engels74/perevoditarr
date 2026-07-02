@@ -96,6 +96,23 @@ export type TelemetryHealthResponse = Schemas['TelemetryHealthResponse'];
 export type InstanceTelemetryDto = Schemas['InstanceTelemetryDto'];
 export type StreamHealthDto = Schemas['StreamHealthDto'];
 
+// Stats & budget reconciliation (P4-T1)
+export type StatsOverviewResponse = Schemas['StatsOverviewResponse'];
+export type StatsTotalsDto = Schemas['StatsTotalsDto'];
+export type ThroughputPointDto = Schemas['ThroughputPointDto'];
+export type FailureClassDto = Schemas['FailureClassDto'];
+export type CoverageSeriesDto = Schemas['CoverageSeriesDto'];
+export type CoveragePointDto = Schemas['CoveragePointDto'];
+export type BudgetActualsDto = Schemas['BudgetActualsDto'];
+
+// Item timeline & Lingarr pass-through (P4-T2)
+export type TimelineResponse = Schemas['TimelineResponse'];
+export type TimelineIntentEventEntry = Schemas['TimelineIntentEventEntry'];
+export type TimelineBazarrHistoryEntry = Schemas['TimelineBazarrHistoryEntry'];
+export type TimelineLingarrRequestEntry = Schemas['TimelineLingarrRequestEntry'];
+export type TimelinePassthroughEntry = Schemas['TimelinePassthroughEntry'];
+export type PassthroughActionRead = Schemas['PassthroughActionRead'];
+
 // Error problem body (core/errors.py) — not part of the OpenAPI components.
 export interface Problem {
 	status: number;

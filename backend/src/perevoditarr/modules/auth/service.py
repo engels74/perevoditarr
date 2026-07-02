@@ -66,6 +66,32 @@ class AuthService:
         await self.session.commit()
         return user
 
+    async def create_user(
+        self,
+        *,
+        username: str,
+        password: str,
+        email: str | None = None,
+        is_admin: bool = True,
+    ) -> User:
+        """Create a user (admin CLI, P4-T3). Unlike create_initial_admin this has
+        no first-run guard, but it still rejects a duplicate username."""
+        existing = (
+            await self.session.scalars(select(User.id).where(User.username == username))
+        ).first()
+        if existing is not None:
+            raise ConflictError(f"a user named {username!r} already exists")
+        password_hash = await asyncio.to_thread(_hasher.hash, password)
+        user = User(
+            username=username,
+            email=email,
+            password_hash=password_hash,
+            is_admin=is_admin,
+        )
+        self.session.add(user)
+        await self.session.commit()
+        return user
+
     async def authenticate(self, username: str, password: str) -> User | None:
         user = (
             await self.session.scalars(select(User).where(User.username == username))

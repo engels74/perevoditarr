@@ -6,6 +6,7 @@ import type {
 	BazarrInstanceCreate,
 	BazarrInstanceRead,
 	BazarrInstanceUpdate,
+	BudgetActualsDto,
 	ConnectionTestRequest,
 	ConnectionTestResult,
 	CoverageStat,
@@ -30,6 +31,7 @@ import type {
 	OverrideRead,
 	OverrideUpsert,
 	Page,
+	PassthroughActionRead,
 	PlanPreviewResponse,
 	PolicyExport,
 	PolicyImportRequest,
@@ -45,9 +47,11 @@ import type {
 	RailStatusDto,
 	RailsOverview,
 	SeriesRead,
+	StatsOverviewResponse,
 	SyncRunRead,
 	TelemetryHealthResponse,
 	TestFireResult,
+	TimelineResponse,
 	TranslationProfileCreate,
 	TranslationProfileRead,
 	TranslationProfileUpdate
@@ -731,4 +735,44 @@ export function sendNotificationDigest(fetchFn: FetchLike = fetch): Promise<Dige
 
 export function getTelemetryHealth(fetchFn: FetchLike = fetch): Promise<TelemetryHealthResponse> {
 	return apiFetch<TelemetryHealthResponse>('/api/v1/telemetry/health', {}, fetchFn);
+}
+
+// --- Stats & budget reconciliation (P4-T1) ----------------------------------
+
+export function getStatsOverview(
+	days: number,
+	instanceId: string | null,
+	fetchFn: FetchLike = fetch
+): Promise<StatsOverviewResponse> {
+	return apiFetch<StatsOverviewResponse>(
+		`/api/v1/stats/overview${qs({ days, bazarrInstanceId: instanceId })}`,
+		{},
+		fetchFn
+	);
+}
+
+export function getStatsBudget(fetchFn: FetchLike = fetch): Promise<BudgetActualsDto[]> {
+	return apiFetch<BudgetActualsDto[]>('/api/v1/stats/budget', {}, fetchFn);
+}
+
+// --- Item timeline & Lingarr pass-through (P4-T2) ---------------------------
+
+export function getIntentTimeline(
+	intentId: string,
+	fetchFn: FetchLike = fetch
+): Promise<TimelineResponse> {
+	return apiFetch<TimelineResponse>(`/api/v1/intents/${intentId}/timeline`, {}, fetchFn);
+}
+
+export function lingarrPassthroughAction(
+	intentId: string,
+	lingarrRequestId: number,
+	action: 'cancel' | 'retry' | 'resume' | 'remove',
+	fetchFn: FetchLike = fetch
+): Promise<PassthroughActionRead> {
+	return apiFetch<PassthroughActionRead>(
+		`/api/v1/intents/${intentId}/lingarr/${lingarrRequestId}/${action}`,
+		{ method: 'POST' },
+		fetchFn
+	);
 }

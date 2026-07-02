@@ -971,6 +971,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/intents/{intent_id}/lingarr/{lingarr_request_id}/{action}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** LingarrPassthrough */
+        post: operations["lingarrPassthroughAction"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/intents": {
         parameters: {
             query?: never;
@@ -980,6 +997,23 @@ export interface paths {
         };
         /** ListIntents */
         get: operations["listIntents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/intents/{intent_id}/timeline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Timeline */
+        get: operations["getIntentTimeline"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1364,6 +1398,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/stats/budget": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Budget */
+        get: operations["getStatsBudget"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/stats/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Overview */
+        get: operations["getStatsOverview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1437,6 +1505,21 @@ export interface components {
             lastProbeAt?: string | null;
             probeDueAt?: string | null;
         };
+        /** BudgetActualsDto */
+        BudgetActualsDto: {
+            /** Format: uuid */
+            lingarrInstanceId: string;
+            instanceName: string;
+            hasActuals: boolean;
+            sampleFiles: number;
+            linesPerFile: number;
+            charactersPerFile: number;
+            totalFiles: number;
+            totalCharacters: number;
+            capturedAt: string | null;
+            heuristicCharactersEpisode: number;
+            heuristicCharactersMovie: number;
+        };
         /** BudgetGaugeDto */
         BudgetGaugeDto: {
             usedCharacters: number;
@@ -1465,6 +1548,19 @@ export interface components {
             versionSupported?: boolean | null;
             latencyMs?: number | null;
             error?: string | null;
+        };
+        /** CoveragePointDto */
+        CoveragePointDto: {
+            /** Format: date */
+            day: string;
+            converged: number;
+            cumulative: number;
+        };
+        /** CoverageSeriesDto */
+        CoverageSeriesDto: {
+            targetLanguage: string;
+            total: number;
+            points: components["schemas"]["CoveragePointDto"][];
         };
         /** CoverageStat */
         CoverageStat: {
@@ -1572,6 +1668,12 @@ export interface components {
             sourceLanguage: string | null;
             traceRendered: string;
             traceSteps: string[];
+        };
+        /** FailureClassDto */
+        FailureClassDto: {
+            failureClass: string;
+            count: number;
+            rate: number;
         };
         /** ForwardAuthSettingsRead */
         ForwardAuthSettingsRead: {
@@ -1861,6 +1963,20 @@ export interface components {
             total: number;
             limit: number;
             offset: number;
+        };
+        /** PassthroughActionRead */
+        PassthroughActionRead: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            intentId: string;
+            lingarrRequestId: number;
+            action: string;
+            actor: string;
+            status: string;
+            detail: string | null;
+            /** Format: date-time */
+            createdAt: string;
         };
         /** PauseRequest */
         PauseRequest: {
@@ -2208,6 +2324,34 @@ export interface components {
         SetupStatus: {
             required: boolean;
         };
+        /** StatsOverviewResponse */
+        StatsOverviewResponse: {
+            /** Format: date-time */
+            generatedAt: string;
+            /** Format: date */
+            since: string;
+            /** Format: date */
+            until: string;
+            bazarrInstanceId: string | null;
+            totals: components["schemas"]["StatsTotalsDto"];
+            throughput: components["schemas"]["ThroughputPointDto"][];
+            failureClasses: components["schemas"]["FailureClassDto"][];
+            coverage: components["schemas"]["CoverageSeriesDto"][];
+            budget: components["schemas"]["BudgetActualsDto"][];
+        };
+        /** StatsTotalsDto */
+        StatsTotalsDto: {
+            dispatched: number;
+            converged: number;
+            superseded: number;
+            failed: number;
+            convergedCharacters: number;
+            meanDurationSeconds: number | null;
+            failedTransient: number;
+            failedEnvironmental: number;
+            failedProvider: number;
+            failedPoison: number;
+        };
         /** StreamHealthDto */
         StreamHealthDto: {
             /** @enum {string} */
@@ -2259,6 +2403,68 @@ export interface components {
             routeId: string;
             sent: boolean;
             detail: string;
+        };
+        /** ThroughputPointDto */
+        ThroughputPointDto: {
+            /** Format: date */
+            day: string;
+            dispatched: number;
+            converged: number;
+            superseded: number;
+            failed: number;
+        };
+        /** TimelineBazarrHistoryEntry */
+        TimelineBazarrHistoryEntry: {
+            at: string | null;
+            action: number;
+            description: string | null;
+            language: string | null;
+            subtitlesPath: string | null;
+            /** @constant */
+            type: "bazarr_history";
+        };
+        /** TimelineIntentEventEntry */
+        TimelineIntentEventEntry: {
+            /** Format: date-time */
+            at: string;
+            actor: string;
+            fromState: string | null;
+            toState: string;
+            reason: string;
+            /** @constant */
+            type: "intent_event";
+        };
+        /** TimelineLingarrRequestEntry */
+        TimelineLingarrRequestEntry: {
+            at: string | null;
+            requestId: number;
+            status: string | null;
+            sourceLanguage: string | null;
+            targetLanguage: string | null;
+            errorMessage: string | null;
+            completedAt: string | null;
+            active: boolean;
+            /** @constant */
+            type: "lingarr_request";
+        };
+        /** TimelinePassthroughEntry */
+        TimelinePassthroughEntry: {
+            /** Format: date-time */
+            at: string;
+            action: string;
+            actor: string;
+            status: string;
+            detail: string | null;
+            lingarrRequestId: number;
+            /** @constant */
+            type: "passthrough_action";
+        };
+        /** TimelineResponse */
+        TimelineResponse: {
+            intent: components["schemas"]["IntentRead"];
+            bazarrHistoryAvailable: boolean;
+            lingarrAvailable: boolean;
+            entries: (components["schemas"]["TimelineIntentEventEntry"] | components["schemas"]["TimelineBazarrHistoryEntry"] | components["schemas"]["TimelineLingarrRequestEntry"] | components["schemas"]["TimelinePassthroughEntry"])[];
         };
         /** TranslationProfileCreate */
         TranslationProfileCreate: {
@@ -4705,6 +4911,45 @@ export interface operations {
             };
         };
     };
+    lingarrPassthroughAction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                intent_id: string;
+                lingarr_request_id: number;
+                action: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Document created, URL follows */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PassthroughActionRead"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
     listIntents: {
         parameters: {
             query?: {
@@ -4731,6 +4976,43 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Page_perevoditarr.modules.intents.schemas.IntentRead_"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    getIntentTimeline: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                intent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TimelineResponse"];
                 };
             };
             /** @description Bad request syntax or unsupported method */
@@ -5574,6 +5856,64 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TelemetryHealthResponse"];
+                };
+            };
+        };
+    };
+    getStatsBudget: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BudgetActualsDto"][];
+                };
+            };
+        };
+    };
+    getStatsOverview: {
+        parameters: {
+            query?: {
+                days?: number;
+                bazarrInstanceId?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatsOverviewResponse"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
                 };
             };
         };

@@ -9,7 +9,7 @@ conservative per-media heuristic over dispatched-in-window intents (estimating
 high per the PRD risk table); actuals-based reconciliation joins in P4.
 """
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from datetime import datetime
 from uuid import UUID
 
@@ -50,9 +50,12 @@ async def dispatch_characters_since(
     since: datetime,
     *,
     bazarr_instance_id: UUID | None = None,
+    characters_per: Mapping[str, int] | None = None,
 ) -> int:
-    """Sum the conservative character estimate over intents dispatched on/after
-    `since`, grouped by media type."""
+    """Sum the per-media character estimate over intents dispatched on/after
+    `since`, grouped by media type. `characters_per` supplies the reconciled
+    per-media actuals (P4-T1) when available; otherwise the conservative
+    heuristic is used (estimate high, PRD §14)."""
     stmt = (
         select(Intent.media_type, func.count())
         .select_from(IntentEvent)
@@ -62,13 +65,15 @@ async def dispatch_characters_since(
     )
     if bazarr_instance_id is not None:
         stmt = stmt.where(Intent.bazarr_instance_id == bazarr_instance_id)
+    heuristic = {
+        "episode": HEURISTIC_EPISODE_CHARACTERS,
+        "movie": HEURISTIC_MOVIE_CHARACTERS,
+    }
+    per_media = characters_per if characters_per is not None else heuristic
     total = 0
     for media_type, count in (await session.execute(stmt)).tuples():
-        per_item = (
-            HEURISTIC_EPISODE_CHARACTERS
-            if media_type == "episode"
-            else HEURISTIC_MOVIE_CHARACTERS
-        )
+        key = str(media_type)
+        per_item = per_media.get(key, heuristic.get(key, 0))
         total += per_item * count
     return total
 

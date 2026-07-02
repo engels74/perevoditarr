@@ -44,6 +44,8 @@ def app_settings(tmp_path: Path) -> AppSettings:
         verify_interval_seconds=0,
         digest_interval_seconds=0,
         telemetry_poll_interval_seconds=0,
+        stats_rollup_interval_seconds=0,
+        budget_reconcile_interval_seconds=0,
     )
 
 

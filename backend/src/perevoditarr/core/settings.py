@@ -51,6 +51,10 @@ class AppSettings(msgspec.Struct, kw_only=True, frozen=True):
     # Telemetry: how often the polling fallback refreshes streams that aren't
     # live on a websocket (P3-T4 / NFR-7); 0 disables the telemetry plane.
     telemetry_poll_interval_seconds: int = 30
+    # Stats rollup (P4-T1): re-derive the daily counters from the audit trail.
+    stats_rollup_interval_seconds: int = 900
+    # Budget reconciliation (P4-T1): pull Lingarr statistics into rolling actuals.
+    budget_reconcile_interval_seconds: int = 3600
 
 
 _FIELD_NAMES = frozenset(field.name for field in msgspec.structs.fields(AppSettings))
@@ -105,6 +109,8 @@ def _validate(settings: AppSettings) -> None:
         "verify_interval_seconds",
         "digest_interval_seconds",
         "telemetry_poll_interval_seconds",
+        "stats_rollup_interval_seconds",
+        "budget_reconcile_interval_seconds",
     ):
         if getattr(settings, field_name) < 0:
             raise SettingsError(

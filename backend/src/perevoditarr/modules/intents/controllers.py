@@ -10,7 +10,8 @@ from datetime import datetime
 from typing import Annotated, Literal
 from uuid import UUID
 
-from litestar import Controller, get
+from litestar import Controller, Request, get, post
+from litestar.datastructures import State
 from litestar.params import Parameter
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -18,12 +19,21 @@ from perevoditarr.core.errors import DomainValidationError
 from perevoditarr.core.schemas import Page
 from perevoditarr.core.sse import SseBus
 from perevoditarr.modules.auth import AuthRuntime
+from perevoditarr.modules.auth.models import User
 from perevoditarr.modules.instances import InstanceGateway
 from perevoditarr.modules.intents.discovery import DiscoveryService
 from perevoditarr.modules.intents.discovery_rules import NotPlanned, Planned
-from perevoditarr.modules.intents.schemas import ExplainRead, IntentDetail, IntentRead
+from perevoditarr.modules.intents.passthrough import PassthroughService
+from perevoditarr.modules.intents.schemas import (
+    ExplainRead,
+    IntentDetail,
+    IntentRead,
+    PassthroughActionRead,
+    TimelineResponse,
+)
 from perevoditarr.modules.intents.service import IntentsService
 from perevoditarr.modules.intents.state_machine import IntentState
+from perevoditarr.modules.intents.timeline import TimelineService
 from perevoditarr.modules.intents.trace import render_human, render_step
 
 # Parameter metadata is inlined at each use site rather than held in PEP 695
@@ -43,6 +53,18 @@ async def provide_discovery_service(
     sse_bus: SseBus,
 ) -> DiscoveryService:
     return DiscoveryService(db_session, auth_runtime.secret_box, gateway, sse_bus)
+
+
+async def provide_timeline_service(
+    db_session: AsyncSession, auth_runtime: AuthRuntime, gateway: InstanceGateway
+) -> TimelineService:
+    return TimelineService(db_session, auth_runtime.secret_box, gateway)
+
+
+async def provide_passthrough_service(
+    db_session: AsyncSession, auth_runtime: AuthRuntime, gateway: InstanceGateway
+) -> PassthroughService:
+    return PassthroughService(db_session, auth_runtime.secret_box, gateway)
 
 
 def _parse_states(raw: str | None) -> list[IntentState] | None:
@@ -175,3 +197,28 @@ class IntentsController(Controller):
         self, intent_id: UUID, intents_service: IntentsService
     ) -> IntentDetail:
         return await intents_service.detail(intent_id)
+
+    @get("/{intent_id:uuid}/timeline", operation_id="getIntentTimeline")
+    async def timeline(
+        self, intent_id: UUID, timeline_service: TimelineService
+    ) -> TimelineResponse:
+        return await timeline_service.timeline(intent_id)
+
+    @post(
+        "/{intent_id:uuid}/lingarr/{lingarr_request_id:int}/{action:str}",
+        operation_id="lingarrPassthroughAction",
+    )
+    async def lingarr_passthrough(
+        self,
+        request: Request[User, object, State],
+        intent_id: UUID,
+        lingarr_request_id: int,
+        action: str,
+        passthrough_service: PassthroughService,
+    ) -> PassthroughActionRead:
+        return await passthrough_service.act(
+            intent_id,
+            lingarr_request_id,
+            action,
+            actor=f"user:{request.user.username}",
+        )

@@ -108,3 +108,24 @@ class IntentEvent(UUIDv7AuditBase):
     evidence: Mapped[dict[str, object] | None] = mapped_column(JsonB)
 
     intent: Mapped[Intent] = relationship(back_populates="events", lazy="raise")
+
+
+class PassthroughAction(UUIDv7AuditBase):
+    """Audit trail for user-initiated Lingarr pass-through actions (P4-T2,
+    FR-X3): each cancel/retry/resume/remove acting on a Lingarr request is
+    recorded here (never automated) so the item timeline shows exactly who did
+    what and whether Lingarr accepted it. Append-only, like intent_event."""
+
+    __tablename__: str | None = "passthrough_action"
+    __table_args__: tuple[SchemaItem, ...] = (
+        Index("ix_passthrough_action_intent_created", "intent_id", "created_at"),
+    )
+
+    intent_id: Mapped[UUID] = mapped_column(
+        ForeignKey("intent.id", ondelete="CASCADE"), index=True
+    )
+    lingarr_request_id: Mapped[int] = mapped_column(Integer)
+    action: Mapped[str] = mapped_column(String(16))  # cancel|retry|resume|remove
+    actor: Mapped[str] = mapped_column(String(64))  # user:<username>
+    status: Mapped[str] = mapped_column(String(16))  # ok | failed
+    detail: Mapped[str | None] = mapped_column(Text)

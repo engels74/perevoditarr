@@ -26,7 +26,7 @@ from litestar.response import File
 from litestar.static_files import (
     create_static_files_router,  # pyright: ignore[reportUnknownVariableType]
 )
-from litestar.types import ExceptionHandlersMap
+from litestar.types import ControllerRouterHandler, ExceptionHandlersMap
 from litestar_granian import GranianPlugin
 
 from perevoditarr.core.db import build_alchemy_config, build_sqlalchemy_plugin
@@ -38,6 +38,7 @@ from perevoditarr.core.logging import (
     get_logger,
     request_id_middleware,
 )
+from perevoditarr.core.metrics import metrics_endpoint
 from perevoditarr.core.security import SecretBox, derive_key, resolve_secret_key
 from perevoditarr.core.settings import AppSettings, load_settings
 from perevoditarr.core.sse import SseBus, sse_events
@@ -80,7 +81,9 @@ from perevoditarr.modules.intents import (
     discovery_loop,
     provide_discovery_service,
     provide_intents_service,
+    provide_passthrough_service,
     provide_quarantine_service,
+    provide_timeline_service,
     reconcile_loop,
     run_discovery,
     run_reconciliation,
@@ -102,6 +105,14 @@ from perevoditarr.modules.notifications import (
 )
 from perevoditarr.modules.policy import PolicyController, provide_policy_service
 from perevoditarr.modules.rails import RailsController, provide_rails_service
+from perevoditarr.modules.stats import (
+    StatsController,
+    budget_reconcile_loop,
+    provide_stats_service,
+    run_budget_reconciliation,
+    run_stats_rollup,
+    stats_rollup_loop,
+)
 from perevoditarr.modules.telemetry import (
     TelemetryBridge,
     TelemetryController,
@@ -359,6 +370,20 @@ def create_app(settings: AppSettings | None = None) -> Litestar:
             )
         except Exception as error:
             get_logger().warning("startup re-verification failed", error=str(error))
+        # Startup budget reconciliation + stats rollup (P4-T1): refresh the
+        # actuals snapshot and re-derive the dashboard counters from durable
+        # evidence before the periodic loops take over. Best-effort — a stale
+        # Lingarr or empty ledger must never block boot.
+        try:
+            _ = await run_budget_reconciliation(alchemy_config, gateway, secret_box)
+        except Exception as error:
+            get_logger().warning(
+                "startup budget reconciliation failed", error=str(error)
+            )
+        try:
+            _ = await run_stats_rollup(alchemy_config)
+        except Exception as error:
+            get_logger().warning("startup stats rollup failed", error=str(error))
         if resolved.health_interval_seconds > 0:
             tasks.append(
                 asyncio.create_task(
@@ -472,6 +497,26 @@ def create_app(settings: AppSettings | None = None) -> Litestar:
                     )
                 )
             )
+        if resolved.stats_rollup_interval_seconds > 0:
+            tasks.append(
+                asyncio.create_task(
+                    stats_rollup_loop(
+                        alchemy_config,
+                        resolved.stats_rollup_interval_seconds,
+                    )
+                )
+            )
+        if resolved.budget_reconcile_interval_seconds > 0:
+            tasks.append(
+                asyncio.create_task(
+                    budget_reconcile_loop(
+                        alchemy_config,
+                        gateway,
+                        secret_box,
+                        resolved.budget_reconcile_interval_seconds,
+                    )
+                )
+            )
         try:
             yield
         finally:
@@ -565,9 +610,10 @@ def create_app(settings: AppSettings | None = None) -> Litestar:
             QuarantineController,
             NotificationsController,
             TelemetryController,
+            StatsController,
         ],
     )
-    route_handlers: list[Router] = [api_v1]
+    route_handlers: list[ControllerRouterHandler] = [api_v1, metrics_endpoint]
     exception_handlers: ExceptionHandlersMap = {  # pyright: ignore[reportUnknownVariableType]
         PerevoditarrError: domain_exception_handler,
     }
@@ -634,6 +680,9 @@ def create_app(settings: AppSettings | None = None) -> Litestar:
             ),
             "telemetry_health_service": Provide(provide_telemetry_health_service),
             "wanted_sync_hook": Provide(provide_wanted_sync_hook, sync_to_thread=False),
+            "stats_service": Provide(provide_stats_service),
+            "timeline_service": Provide(provide_timeline_service),
+            "passthrough_service": Provide(provide_passthrough_service),
         },
         openapi_config=OpenAPIConfig(
             title="Perevoditarr API",

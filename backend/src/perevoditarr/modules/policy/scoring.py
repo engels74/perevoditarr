@@ -49,8 +49,13 @@ def score_intent(
         else 0
     )
     age_hours = max(0.0, (now - facts.recency_anchor).total_seconds() / 3600.0)
+    # Clamp to the schema floor (HalfLifeHours ge=1): the domain struct carries
+    # no Meta, so a corrupt/hand-edited row with 0 (or negative) reaches here
+    # and would divide by zero. Last line of defense regardless of how the
+    # struct was built (msgspec constructors never run Meta anyway).
+    half_life = max(1, weights.recency_half_life_hours)
     # math.pow keeps the checker-visible type float (float.__pow__ is Any).
-    decay = math.pow(0.5, age_hours / weights.recency_half_life_hours)
+    decay = math.pow(0.5, age_hours / half_life)
     recency = round(weights.recency_max * decay)
     components = {
         "base": base,

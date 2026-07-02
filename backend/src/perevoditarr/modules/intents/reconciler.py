@@ -150,6 +150,8 @@ class ReconcilerService:
         movie_ids = sorted(
             {row.external_media_id for row in rows if row.media_type == "movie"}
         )
+        # episode_subtitles is queried by series id but keyed by episode id
+        # (external_media_id below): the collector returns all episodes per series.
         episode_subtitles = (
             await metadata.episode_subtitles(episode_series) if episode_series else {}
         )

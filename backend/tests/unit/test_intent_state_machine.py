@@ -8,11 +8,14 @@ import pytest
 from perevoditarr.modules.intents.state_machine import (
     BACKLOG_STATES,
     IN_FLIGHT_STATES,
+    MANUAL_TRANSITIONS,
     TERMINAL_STATES,
     TRANSITIONS,
     IllegalIntentTransition,
     IntentState,
+    assert_manual_transition,
     assert_transition,
+    can_manual_transition,
     can_transition,
 )
 
@@ -90,3 +93,25 @@ def test_supersede_reachable_from_every_non_terminal_state() -> None:
     # any point before terminality.
     for state in set(IntentState) - TERMINAL_STATES:
         assert can_transition(state, IntentState.SUPERSEDED)
+
+
+def test_manual_retry_reeligibilizes_quarantined_and_needs_attention() -> None:
+    # FR-R6: operator retry re-eligibilizes both a quarantined intent and a
+    # needs-attention (failed) intent — an edge automation never takes (failed
+    # only auto-moves to retry_eligible/quarantined/superseded).
+    for source in (IntentState.QUARANTINED, IntentState.FAILED):
+        assert can_manual_transition(source, IntentState.ELIGIBLE)
+        assert_manual_transition(source, IntentState.ELIGIBLE)  # must not raise
+        assert not can_transition(source, IntentState.ELIGIBLE)  # auto path forbids it
+
+
+def test_manual_transitions_never_overlap_the_auto_table() -> None:
+    # Manual edges must stay disjoint from TRANSITIONS so they never leak into
+    # any automated process.
+    for source, targets in MANUAL_TRANSITIONS.items():
+        assert not (targets & TRANSITIONS[source])
+
+
+def test_manual_transition_rejects_unlisted_source() -> None:
+    with pytest.raises(IllegalIntentTransition):
+        assert_manual_transition(IntentState.DISPATCHED, IntentState.ELIGIBLE)

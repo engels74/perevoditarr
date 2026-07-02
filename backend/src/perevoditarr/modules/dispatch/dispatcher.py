@@ -242,6 +242,15 @@ class DispatcherService:
                     pair_keys.add(key)  # hold the pair for the rest of this pass
                     if await self._dispatch(client, instance, row, source_path, moment):
                         summary.dispatched += 1
+                        if verdict.breaker_probe:
+                            # Consume the half-open probe slot so the next
+                            # candidate this pass evaluates against a half_open
+                            # breaker and holds (§8.4: one concurrent probe).
+                            # Gated on a real dispatch: a superseded/skipped
+                            # candidate never sends the PATCH, and half_open has
+                            # no time-based recovery, so marking it earlier would
+                            # strand the breaker with no probe in flight.
+                            await self.rails.mark_probe(instance.id, now=moment)
                     else:
                         # Bazarr rejected the PATCH: back off the whole pass.
                         break

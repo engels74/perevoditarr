@@ -99,6 +99,16 @@ async def test_retry_reeligibilizes(session: AsyncSession) -> None:
     assert result.state == "eligible"
 
 
+async def test_retry_reeligibilizes_needs_attention(session: AsyncSession) -> None:
+    # Needs-attention items are `failed` (environmental failure parked without
+    # retry burn); the same manual retry re-eligibilizes them, mirroring the
+    # quarantine retry, once the operator has cleared the cause (FR-R6).
+    instance = await _instance(session)
+    intent = await _intent(session, instance.id, state="failed")
+    result = await _service(session).retry(intent.id)
+    assert result.state == "eligible"
+
+
 async def test_release_closes_intent(session: AsyncSession) -> None:
     instance = await _instance(session)
     intent = await _intent(session, instance.id, state="quarantined")
@@ -119,8 +129,10 @@ async def test_exclude_closes_intent_and_adds_exclusion(
     assert any(e.kind == "series" and e.rule_key == "7" for e in exclusions)
 
 
-async def test_retry_on_non_quarantined_is_conflict(session: AsyncSession) -> None:
+async def test_retry_on_non_retryable_state_is_conflict(session: AsyncSession) -> None:
+    # Only quarantined and needs-attention (failed) intents are retryable; a
+    # dispatched (in-flight) intent is not a manual-transition source.
     instance = await _instance(session)
-    intent = await _intent(session, instance.id, state="failed")
+    intent = await _intent(session, instance.id, state="dispatched")
     with pytest.raises(ConflictError):
         _ = await _service(session).retry(intent.id)

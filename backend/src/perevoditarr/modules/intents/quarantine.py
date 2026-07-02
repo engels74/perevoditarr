@@ -66,10 +66,12 @@ class QuarantineService:
                 intent,
                 IntentState.ELIGIBLE,
                 actor="user:retry",
-                reason="manual retry from quarantine",
+                reason="manual retry",
             )
         except IllegalIntentTransition as error:
-            raise ConflictError("only quarantined intents can be retried") from error
+            raise ConflictError(
+                "only quarantined or needs-attention intents can be retried"
+            ) from error
         return intent_read(intent)
 
     async def release(self, intent_id: UUID) -> IntentRead:

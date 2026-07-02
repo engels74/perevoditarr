@@ -70,12 +70,21 @@ class LingarrSignalRConsumer:
     async def run(self) -> None:
         status = StreamStatus()
         headers = {API_KEY_HEADER: self.api_key} if self.api_key else {}
+
+        async def mark_live() -> None:
+            # pysignalr fires on_open only after negotiation + WS connect +
+            # handshake succeed, so the stream is marked live on a real connection
+            # rather than optimistically before client.run() does the network I/O
+            # (mirrors the Socket.IO consumer's post-connect() ordering).
+            nonlocal status
+            status = on_connected(now=datetime.now(UTC))
+            self.health.set(self.instance_id, _STREAM, status)
+
         while True:
             client = SignalRClient(self.hub_url, headers=headers)
             client.on(self.method, self.handle_args)
+            client.on_open(mark_live)
             try:
-                status = on_connected(now=datetime.now(UTC))
-                self.health.set(self.instance_id, _STREAM, status)
                 await client.run()
             except Exception as error:  # telemetry must never crash the app
                 status = on_failure(status, now=datetime.now(UTC), detail=str(error))

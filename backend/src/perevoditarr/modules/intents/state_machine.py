@@ -62,12 +62,19 @@ TERMINAL_STATES: frozenset[IntentState] = frozenset(
     state for state, targets in TRANSITIONS.items() if not targets
 )
 
-# Manual-only transitions (FR-R6): a quarantined intent stays terminal for every
-# automated process (discovery/dispatch/reconciliation never re-open it), but an
-# operator may retry it (→ eligible) or release/exclude it (→ superseded). Kept
-# separate from TRANSITIONS so quarantine never leaks into the auto lifecycle.
+# Manual-only transitions (FR-R6): operator actions on stuck intents that
+# automated processes can never take. A quarantined intent stays terminal for
+# every automated process (discovery/dispatch/reconciliation never re-open it),
+# but an operator may retry it (→ eligible) or release/exclude it (→ superseded).
+# A needs-attention intent (an environmental failure parked in `failed` without
+# retry burn — see verification's NeedsAttention outcome) may likewise be retried
+# (→ eligible) once the operator has cleared the cause; automation only ever
+# moves `failed` on to retry_eligible/quarantined/superseded, never straight back
+# to eligible, so this edge is manual-only. Kept separate from TRANSITIONS so
+# these edges never leak into the auto lifecycle.
 MANUAL_TRANSITIONS: Mapping[IntentState, frozenset[IntentState]] = {
     IntentState.QUARANTINED: frozenset({IntentState.ELIGIBLE, IntentState.SUPERSEDED}),
+    IntentState.FAILED: frozenset({IntentState.ELIGIBLE}),
 }
 
 

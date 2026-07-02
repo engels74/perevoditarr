@@ -25,6 +25,10 @@ from perevoditarr.modules.integrations.lingarr import (
     LingarrClient,
     TranslationRequestRecord,
 )
+from perevoditarr.modules.intents.evidence import (
+    matching_lingarr_records_episode,
+    matching_lingarr_records_movie,
+)
 from perevoditarr.modules.intents.models import Intent, PassthroughAction
 from perevoditarr.modules.intents.schemas import PassthroughActionRead
 
@@ -76,6 +80,30 @@ class PassthroughService:
         # request_detail failing (e.g. 404) is a genuine error before any audit
         # — we never acted, so nothing is logged.
         record = await client.request_detail(lingarr_request_id)
+        # The id is an arbitrary caller-supplied path param, so confirm the
+        # fetched record actually belongs to this intent (§6.5 matchers) before
+        # we act on it or audit-log it against intent_id — otherwise a caller
+        # could act on and mis-attribute an unrelated Lingarr request.
+        if intent.media_type == "episode":
+            matched = matching_lingarr_records_episode(
+                [record],
+                display_title=intent.display_title,
+                source_language=intent.source_language,
+                target_language=intent.target_language,
+            )
+        else:
+            matched = matching_lingarr_records_movie(
+                [record],
+                radarr_id=intent.external_media_id,
+                display_title=intent.display_title,
+                source_language=intent.source_language,
+                target_language=intent.target_language,
+            )
+        if not matched:
+            raise NotFoundError(
+                f"Lingarr request {lingarr_request_id} is not associated with "
+                + f"intent {intent_id}"
+            )
 
         status = "ok"
         detail: str | None = None

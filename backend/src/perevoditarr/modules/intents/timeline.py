@@ -181,7 +181,16 @@ class TimelineService:
             client = self.gateway.lingarr(
                 lingarr.url, self.instances.lingarr_api_key(lingarr)
             )
-            records = await LingarrRequestCollector(client).recent_requests()
+            # Cold-path per-item lookup: scan a deliberately wider bounded
+            # window (100 x 20 = 2000) than the shared 500-record default, so
+            # older intents on large Lingarr instances still resolve their
+            # matching request by title+language. Bounded on purpose — this is
+            # a telemetry-plane read (§7.3) where a miss is a cosmetic gap,
+            # never a wrong state transition, so the window stays finite to
+            # keep upstream request cost sane rather than paging unbounded.
+            records = await LingarrRequestCollector(client).recent_requests(
+                page_size=100, max_pages=20
+            )
         except PerevoditarrError:
             return False
         if intent.media_type == "episode":

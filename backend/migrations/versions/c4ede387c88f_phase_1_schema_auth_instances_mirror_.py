@@ -667,7 +667,7 @@ def upgrade() -> None:
             "language",
             "forced",
             "hi",
-            name=op.f("uq_wanted_subtitle_bazarr_instance_id"),
+            name=op.f("uq_wanted_subtitle_bazarr_instance_id_episode_id"),
         ),
         sa.UniqueConstraint(
             "bazarr_instance_id",
@@ -675,7 +675,7 @@ def upgrade() -> None:
             "language",
             "forced",
             "hi",
-            name=op.f("uq_wanted_subtitle_bazarr_instance_id"),
+            name=op.f("uq_wanted_subtitle_bazarr_instance_id_movie_id"),
         ),
     )
     with op.batch_alter_table("wanted_subtitle", schema=None) as batch_op:

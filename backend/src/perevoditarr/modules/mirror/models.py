@@ -153,10 +153,26 @@ class WantedSubtitle(UUIDv7AuditBase):
 
     __tablename__ = "wanted_subtitle"
     __table_args__ = (
+        # Explicit names: both constraints start with bazarr_instance_id, and
+        # the naming convention (uq_<table>_<column_0_name>) keys off only the
+        # first column, so the default-generated names collide (PostgreSQL
+        # then rejects the second CREATE as a duplicate object).
         UniqueConstraint(
-            "bazarr_instance_id", "episode_id", "language", "forced", "hi"
+            "bazarr_instance_id",
+            "episode_id",
+            "language",
+            "forced",
+            "hi",
+            name="uq_wanted_subtitle_bazarr_instance_id_episode_id",
         ),
-        UniqueConstraint("bazarr_instance_id", "movie_id", "language", "forced", "hi"),
+        UniqueConstraint(
+            "bazarr_instance_id",
+            "movie_id",
+            "language",
+            "forced",
+            "hi",
+            name="uq_wanted_subtitle_bazarr_instance_id_movie_id",
+        ),
         Index("ix_wanted_instance_language", "bazarr_instance_id", "language"),
         Index("ix_wanted_instance_last_seen", "bazarr_instance_id", "last_seen_at"),
     )

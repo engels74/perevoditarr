@@ -97,11 +97,20 @@ class LingarrClient:
             )
         return response
 
+    def _decode[T](self, content: bytes, expected: type[T]) -> T:
+        # Malformed upstream JSON is "Lingarr misbehaved" — translate it into the
+        # domain error hierarchy here, the same way _request() translates
+        # transport failures, so callers only ever handle PerevoditarrError.
+        try:
+            return msgspec.json.decode(content, type=expected)
+        except msgspec.DecodeError as error:
+            raise UpstreamError(f"Lingarr returned malformed JSON: {error}") from error
+
     # --- version & settings ------------------------------------------------
 
     async def version(self) -> VersionInfo:
         response = await self._request("GET", "/api/version")
-        return msgspec.json.decode(response.content, type=VersionInfo)
+        return self._decode(response.content, VersionInfo)
 
     async def get_setting(self, key: str) -> str | None:
         response = await self._request(
@@ -109,13 +118,13 @@ class LingarrClient:
         )
         if response.status_code != 200:
             return None
-        return msgspec.json.decode(response.content, type=str)
+        return self._decode(response.content, str)
 
     async def get_settings(self, keys: tuple[str, ...]) -> dict[str, str]:
         response = await self._request(
             "POST", "/api/setting/multiple/get", json_body=list(keys)
         )
-        return msgspec.json.decode(response.content, type=dict[str, str])
+        return self._decode(response.content, dict[str, str])
 
     async def doctor_settings(self) -> dict[str, str]:
         return await self.get_settings(DOCTOR_SETTING_KEYS)
@@ -124,7 +133,7 @@ class LingarrClient:
 
     async def active_requests(self) -> list[ActiveTranslation]:
         response = await self._request("GET", "/api/translationrequest/active")
-        return msgspec.json.decode(response.content, type=list[ActiveTranslation])
+        return self._decode(response.content, list[ActiveTranslation])
 
     async def requests_page(
         self,
@@ -147,7 +156,7 @@ class LingarrClient:
         response = await self._request(
             "GET", "/api/translationrequest/requests", params=params
         )
-        return msgspec.json.decode(response.content, type=PagedTranslationRequests)
+        return self._decode(response.content, PagedTranslationRequests)
 
     async def request_detail(self, request_id: int) -> TranslationRequestRecord:
         response = await self._request(
@@ -155,7 +164,7 @@ class LingarrClient:
         )
         if response.status_code == 404:
             raise UpstreamError(f"Lingarr translation request {request_id} not found")
-        return msgspec.json.decode(response.content, type=TranslationRequestRecord)
+        return self._decode(response.content, TranslationRequestRecord)
 
     # Pass-through actions (FR-X3): user-initiated, 1:1 with Lingarr's own
     # endpoints, always audit-logged by the caller.
@@ -184,11 +193,11 @@ class LingarrClient:
 
     async def statistics(self) -> LingarrStatistics:
         response = await self._request("GET", "/api/statistics")
-        return msgspec.json.decode(response.content, type=LingarrStatistics)
+        return self._decode(response.content, LingarrStatistics)
 
     async def schedule_jobs(self) -> list[dict[str, object]]:
         response = await self._request("GET", "/api/schedule/jobs")
-        return msgspec.json.decode(response.content, type=list[dict[str, object]])
+        return self._decode(response.content, list[dict[str, object]])
 
 
 def _action_body(request: TranslationRequestRecord) -> dict[str, object]:

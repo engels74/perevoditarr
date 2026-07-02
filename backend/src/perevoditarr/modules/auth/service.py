@@ -7,9 +7,11 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 import msgspec
+import structlog
 from argon2 import PasswordHasher
 from argon2.exceptions import VerificationError, VerifyMismatchError
 from sqlalchemy import func, select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
@@ -20,6 +22,8 @@ from perevoditarr.modules.auth.schemas import (
     ForwardAuthProviderSettings,
     OidcProviderSettings,
 )
+
+_logger = structlog.get_logger()
 
 _hasher = PasswordHasher()  # argon2id with library defaults
 
@@ -171,9 +175,24 @@ class AuthService:
         ).one_or_none()
         if api_key is None or not api_key.user.is_active:
             return None
+        # Detach the fully-loaded user before the cosmetic commit below. A
+        # rollback expires every instance still attached to the shared request
+        # session, and ApiKey.user is lazy="raise", so re-reading it (or any
+        # column of an expired user) after a rollback would raise. A detached
+        # instance keeps its already-loaded columns, so the returned user stays
+        # usable by the downstream guards/handlers regardless of the outcome.
+        user = api_key.user
+        self.session.expunge(user)
         api_key.last_used_at = datetime.now(UTC)
-        await self.session.commit()
-        return api_key.user
+        try:
+            await self.session.commit()
+        except SQLAlchemyError as error:
+            # last_used_at is a cosmetic timestamp; a transient write failure
+            # must not reject an otherwise-valid key. Roll back so the shared
+            # request session is left usable for the downstream handler.
+            await self.session.rollback()
+            _logger.warning("api key last_used_at update failed", error=str(error))
+        return user
 
 
 class ProviderConfigService:

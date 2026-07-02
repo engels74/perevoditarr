@@ -61,7 +61,7 @@ async def _upsert(
 ) -> None:
     if not rows:
         return
-    dialect = session.bind.dialect.name if session.bind is not None else "sqlite"
+    dialect = session.get_bind().dialect.name
     insert_fn = pg_insert if dialect == "postgresql" else sqlite_insert
     statement = insert_fn(table).values(rows)
     statement = statement.on_conflict_do_update(

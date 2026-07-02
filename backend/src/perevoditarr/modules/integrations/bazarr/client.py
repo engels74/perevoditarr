@@ -84,19 +84,28 @@ class BazarrClient:
             )
         return response
 
+    def _decode[T](self, content: bytes, expected: type[T]) -> T:
+        # Malformed upstream JSON is "Bazarr misbehaved" — translate it into the
+        # domain error hierarchy here, the same way _request() translates
+        # transport failures, so callers only ever handle PerevoditarrError.
+        try:
+            return msgspec.json.decode(content, type=expected)
+        except msgspec.DecodeError as error:
+            raise UpstreamError(f"Bazarr returned malformed JSON: {error}") from error
+
     # --- system ----------------------------------------------------------
 
     async def system_status(self) -> SystemStatusData:
         response = await self._request("GET", "/api/system/status")
-        return msgspec.json.decode(response.content, type=SystemStatusResponse).data
+        return self._decode(response.content, SystemStatusResponse).data
 
     async def system_settings(self) -> SystemSettings:
         response = await self._request("GET", "/api/system/settings")
-        return msgspec.json.decode(response.content, type=SystemSettings)
+        return self._decode(response.content, SystemSettings)
 
     async def languages_profiles(self) -> list[LanguagesProfile]:
         response = await self._request("GET", "/api/system/languages/profiles")
-        return msgspec.json.decode(response.content, type=list[LanguagesProfile])
+        return self._decode(response.content, list[LanguagesProfile])
 
     # --- library ---------------------------------------------------------
 
@@ -104,19 +113,19 @@ class BazarrClient:
         response = await self._request(
             "GET", "/api/series", params={"start": start, "length": length}
         )
-        return msgspec.json.decode(response.content, type=SeriesPage)
+        return self._decode(response.content, SeriesPage)
 
     async def episodes(self, *, series_ids: list[int]) -> list[EpisodeItem]:
         response = await self._request(
             "GET", "/api/episodes", params={"seriesid[]": series_ids}
         )
-        return msgspec.json.decode(response.content, type=EpisodesResponse).data
+        return self._decode(response.content, EpisodesResponse).data
 
     async def movies(self, *, start: int = 0, length: int = -1) -> MoviesPage:
         response = await self._request(
             "GET", "/api/movies", params={"start": start, "length": length}
         )
-        return msgspec.json.decode(response.content, type=MoviesPage)
+        return self._decode(response.content, MoviesPage)
 
     async def wanted_episodes(
         self, *, start: int = 0, length: int = -1
@@ -124,7 +133,7 @@ class BazarrClient:
         response = await self._request(
             "GET", "/api/episodes/wanted", params={"start": start, "length": length}
         )
-        return msgspec.json.decode(response.content, type=WantedEpisodesPage)
+        return self._decode(response.content, WantedEpisodesPage)
 
     async def wanted_movies(
         self, *, start: int = 0, length: int = -1
@@ -132,7 +141,7 @@ class BazarrClient:
         response = await self._request(
             "GET", "/api/movies/wanted", params={"start": start, "length": length}
         )
-        return msgspec.json.decode(response.content, type=WantedMoviesPage)
+        return self._decode(response.content, WantedMoviesPage)
 
     # --- history (action == 6 => translated; durable evidence, §6.8) ------
 
@@ -143,7 +152,7 @@ class BazarrClient:
         if episode_id is not None:
             params["episodeid"] = episode_id
         response = await self._request("GET", "/api/episodes/history", params=params)
-        return msgspec.json.decode(response.content, type=EpisodeHistoryPage)
+        return self._decode(response.content, EpisodeHistoryPage)
 
     async def movies_history(
         self, *, start: int = 0, length: int = -1, radarr_id: int | None = None
@@ -152,7 +161,7 @@ class BazarrClient:
         if radarr_id is not None:
             params["radarrid"] = radarr_id
         response = await self._request("GET", "/api/movies/history", params=params)
-        return msgspec.json.decode(response.content, type=MovieHistoryPage)
+        return self._decode(response.content, MovieHistoryPage)
 
     # --- jobs queue: transient dispatch buffer + backpressure only (§6.2) --
 
@@ -161,7 +170,7 @@ class BazarrClient:
         if status is not None:
             params["status"] = status
         response = await self._request("GET", "/api/system/jobs", params=params)
-        return msgspec.json.decode(response.content, type=JobsResponse).data
+        return self._decode(response.content, JobsResponse).data
 
     async def delete_job(self, job_id: int) -> None:
         _ = await self._request(

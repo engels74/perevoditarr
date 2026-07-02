@@ -1005,6 +1005,365 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/rails/{bazarr_instance_id}/activate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** ActivateInstance */
+        post: operations["activateInstanceRails"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/rails/{bazarr_instance_id}/deactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** DeactivateInstance */
+        post: operations["deactivateInstanceRails"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/rails/{bazarr_instance_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** InstanceStatus */
+        get: operations["getInstanceRails"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/rails/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Overview */
+        get: operations["getRailsOverview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/rails/pause": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** PauseGlobal */
+        post: operations["pauseRailsGlobal"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/rails/{bazarr_instance_id}/pause": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** PauseInstance */
+        post: operations["pauseInstanceRails"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/rails/resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** ResumeGlobal */
+        post: operations["resumeRailsGlobal"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/rails/{bazarr_instance_id}/resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** ResumeInstance */
+        post: operations["resumeInstanceRails"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/rails/windows": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** SetGlobalWindows */
+        put: operations["setRailsWindowsGlobal"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/rails/{bazarr_instance_id}/window-k": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** SetInstanceWindowK */
+        put: operations["setInstanceWindowK"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/rails/{bazarr_instance_id}/windows": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** SetInstanceWindows */
+        put: operations["setInstanceRailsWindows"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/quarantine/{intent_id}/exclude": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Exclude */
+        post: operations["excludeQuarantinedIntent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/quarantine/needs-attention": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** ListNeedsAttention */
+        get: operations["listNeedsAttention"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/quarantine": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** ListQuarantine */
+        get: operations["listQuarantine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/quarantine/{intent_id}/release": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Release */
+        post: operations["releaseQuarantinedIntent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/quarantine/{intent_id}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Retry */
+        post: operations["retryQuarantinedIntent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications/routes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** ListRoutes */
+        get: operations["listNotificationRoutes"];
+        put?: never;
+        /** CreateRoute */
+        post: operations["createNotificationRoute"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications/routes/{route_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** DeleteRoute */
+        delete: operations["deleteNotificationRoute"];
+        options?: never;
+        head?: never;
+        /** UpdateRoute */
+        patch: operations["updateNotificationRoute"];
+        trace?: never;
+    };
+    "/api/v1/notifications/digest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** SendDigest */
+        post: operations["sendNotificationDigest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications/routes/{route_id}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** TestRoute */
+        post: operations["testNotificationRoute"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/telemetry/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Health */
+        get: operations["getTelemetryHealth"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1069,6 +1428,29 @@ export interface components {
             enabled?: boolean;
             lingarrInstanceId?: string | null;
         };
+        /** BreakerDto */
+        BreakerDto: {
+            /** @enum {string} */
+            state: "closed" | "open" | "half_open";
+            consecutiveFailures: number;
+            openedAt?: string | null;
+            lastProbeAt?: string | null;
+            probeDueAt?: string | null;
+        };
+        /** BudgetGaugeDto */
+        BudgetGaugeDto: {
+            usedCharacters: number;
+            limitCharacters: number | null;
+            blocked: boolean;
+        };
+        /** CapGaugeDto */
+        CapGaugeDto: {
+            /** @enum {string} */
+            period: "hourly" | "daily" | "weekly";
+            used: number;
+            limit: number | null;
+            blocked: boolean;
+        };
         /** ConnectionTestRequest */
         ConnectionTestRequest: {
             /** @enum {string} */
@@ -1091,6 +1473,16 @@ export interface components {
             moviesWithSubtitle: number;
             episodesWanted: number;
             moviesWanted: number;
+        };
+        /** DigestResult */
+        DigestResult: {
+            /** Format: date-time */
+            generatedAt: string;
+            routesNotified: number;
+            converged: number;
+            superseded: number;
+            failed: number;
+            estimatedCharacters: number;
         };
         /** DoctorFindingRead */
         DoctorFindingRead: {
@@ -1242,6 +1634,13 @@ export interface components {
             version?: string | null;
             detail?: string | null;
         };
+        /** InstanceTelemetryDto */
+        InstanceTelemetryDto: {
+            /** Format: uuid */
+            bazarrInstanceId: string;
+            instanceName: string;
+            streams: components["schemas"]["StreamHealthDto"][];
+        };
         /** IntentDetail */
         IntentDetail: {
             intent: components["schemas"]["IntentRead"];
@@ -1350,6 +1749,32 @@ export interface components {
             subtitles: components["schemas"]["SubtitleRead"][];
             wanted: components["schemas"]["WantedRead"][];
         };
+        /** NotificationRouteCreate */
+        NotificationRouteCreate: {
+            name: string;
+            url: string;
+            /** @default true */
+            enabled: boolean;
+            events?: ("breaker_tripped" | "breaker_closed" | "cap_reached" | "quarantine_added" | "doctor_critical" | "daily_digest")[];
+        };
+        /** NotificationRouteRead */
+        NotificationRouteRead: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            enabled: boolean;
+            events: string[];
+            urlMasked: string;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        /** NotificationRouteUpdate */
+        NotificationRouteUpdate: {
+            name?: string;
+            url?: string;
+            enabled?: boolean;
+            events?: ("breaker_tripped" | "breaker_closed" | "cap_reached" | "quarantine_added" | "doctor_critical" | "daily_digest")[];
+        };
         /** OidcPublicInfo */
         OidcPublicInfo: {
             enabled: boolean;
@@ -1436,6 +1861,10 @@ export interface components {
             total: number;
             limit: number;
             offset: number;
+        };
+        /** PauseRequest */
+        PauseRequest: {
+            reason?: string | null;
         };
         /** PlanGroupDto */
         PlanGroupDto: {
@@ -1695,6 +2124,29 @@ export interface components {
             breakerFailureThreshold?: number | null;
             breakerProbeMinutes?: number | null;
         };
+        /** RailStatusDto */
+        RailStatusDto: {
+            /** @enum {string} */
+            scope: "global" | "instance";
+            bazarrInstanceId: string | null;
+            instanceName: string | null;
+            dispatchActive: boolean;
+            paused: boolean;
+            pausedReason: string | null;
+            dispatchWindowK: number;
+            windowOpen: boolean;
+            windows: components["schemas"]["SchedulingWindowDto"][];
+            breaker: components["schemas"]["BreakerDto"] | null;
+            caps: components["schemas"]["CapGaugeDto"][];
+            budget: components["schemas"]["BudgetGaugeDto"] | null;
+        };
+        /** RailsOverview */
+        RailsOverview: {
+            /** Format: date-time */
+            generatedAt: string;
+            globalRails: components["schemas"]["RailStatusDto"];
+            instances: components["schemas"]["RailStatusDto"][];
+        };
         /** ResolvedValueDto[bool] */
         ResolvedValueDto_bool_: {
             value: boolean;
@@ -1714,6 +2166,23 @@ export interface components {
         "ResolvedValueDto_perevoditarr.modules.policy.schemas.PriorityWeightsDto_": {
             value: components["schemas"]["PriorityWeightsDto"];
             provenance: components["schemas"]["ProvenanceDto"];
+        };
+        /** SchedulingWindowDto */
+        SchedulingWindowDto: {
+            days: number[];
+            start: string;
+            end: string;
+            timezone: string;
+        };
+        /** SchedulingWindowInput */
+        SchedulingWindowInput: {
+            days?: number[];
+            /** @default 00:00 */
+            start: string;
+            /** @default 24:00 */
+            end: string;
+            /** @default UTC */
+            timezone: string;
         };
         /** SeriesRead */
         SeriesRead: {
@@ -1738,6 +2207,16 @@ export interface components {
         /** SetupStatus */
         SetupStatus: {
             required: boolean;
+        };
+        /** StreamHealthDto */
+        StreamHealthDto: {
+            /** @enum {string} */
+            stream: "bazarr_socketio" | "lingarr_signalr" | "polling";
+            state: string;
+            polling: boolean;
+            failures: number;
+            detail: string | null;
+            since: string | null;
         };
         /** SubtitleRead */
         SubtitleRead: {
@@ -1767,6 +2246,19 @@ export interface components {
             appVersion: string;
             environment: string;
             databaseDialect: string;
+        };
+        /** TelemetryHealthResponse */
+        TelemetryHealthResponse: {
+            /** Format: date-time */
+            generatedAt: string;
+            instances: components["schemas"]["InstanceTelemetryDto"][];
+        };
+        /** TestFireResult */
+        TestFireResult: {
+            /** Format: uuid */
+            routeId: string;
+            sent: boolean;
+            detail: string;
         };
         /** TranslationProfileCreate */
         TranslationProfileCreate: {
@@ -1815,6 +2307,14 @@ export interface components {
             language: string;
             forced: boolean;
             hi: boolean;
+        };
+        /** WindowKUpdate */
+        WindowKUpdate: {
+            windowK?: number | null;
+        };
+        /** WindowsUpdate */
+        WindowsUpdate: {
+            windows?: components["schemas"]["SchedulingWindowInput"][];
         };
     };
     responses: never;
@@ -4284,6 +4784,796 @@ export interface operations {
                             [key: string]: unknown;
                         } | unknown[];
                     };
+                };
+            };
+        };
+    };
+    activateInstanceRails: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bazarr_instance_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Document created, URL follows */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RailStatusDto"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    deactivateInstanceRails: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bazarr_instance_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Document created, URL follows */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RailStatusDto"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    getInstanceRails: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bazarr_instance_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RailStatusDto"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    getRailsOverview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RailsOverview"];
+                };
+            };
+        };
+    };
+    pauseRailsGlobal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PauseRequest"];
+            };
+        };
+        responses: {
+            /** @description Document created, URL follows */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RailStatusDto"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    pauseInstanceRails: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bazarr_instance_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PauseRequest"];
+            };
+        };
+        responses: {
+            /** @description Document created, URL follows */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RailStatusDto"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    resumeRailsGlobal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Document created, URL follows */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RailStatusDto"];
+                };
+            };
+        };
+    };
+    resumeInstanceRails: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bazarr_instance_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Document created, URL follows */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RailStatusDto"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    setRailsWindowsGlobal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WindowsUpdate"];
+            };
+        };
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RailStatusDto"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    setInstanceWindowK: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bazarr_instance_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WindowKUpdate"];
+            };
+        };
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RailStatusDto"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    setInstanceRailsWindows: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bazarr_instance_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WindowsUpdate"];
+            };
+        };
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RailStatusDto"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    excludeQuarantinedIntent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                intent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Document created, URL follows */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntentRead"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    listNeedsAttention: {
+        parameters: {
+            query?: {
+                bazarr_instance_id?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_perevoditarr.modules.intents.schemas.IntentRead_"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    listQuarantine: {
+        parameters: {
+            query?: {
+                bazarr_instance_id?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_perevoditarr.modules.intents.schemas.IntentRead_"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    releaseQuarantinedIntent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                intent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Document created, URL follows */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntentRead"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    retryQuarantinedIntent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                intent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Document created, URL follows */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntentRead"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    listNotificationRoutes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationRouteRead"][];
+                };
+            };
+        };
+    };
+    createNotificationRoute: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NotificationRouteCreate"];
+            };
+        };
+        responses: {
+            /** @description Document created, URL follows */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationRouteRead"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    deleteNotificationRoute: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                route_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Request fulfilled, nothing follows */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    updateNotificationRoute: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                route_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NotificationRouteUpdate"];
+            };
+        };
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationRouteRead"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    sendNotificationDigest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Document created, URL follows */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DigestResult"];
+                };
+            };
+        };
+    };
+    testNotificationRoute: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                route_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Document created, URL follows */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TestFireResult"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    getTelemetryHealth: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TelemetryHealthResponse"];
                 };
             };
         };

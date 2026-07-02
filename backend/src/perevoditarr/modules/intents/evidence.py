@@ -165,6 +165,51 @@ def _match(record: TranslationRequestRecord) -> LingarrRequestMatch:
     )
 
 
+def matching_lingarr_records_episode(
+    records: Sequence[TranslationRequestRecord],
+    *,
+    display_title: str,
+    source_language: str,
+    target_language: str,
+) -> tuple[TranslationRequestRecord, ...]:
+    """Raw Lingarr records matching one episode intent at §6.5 granularity
+    (show title + pair). Used by the pre-dispatch guard, the evidence summary,
+    and failure classification (which needs each record's error_message)."""
+    sources = _lingarr_codes(source_language)
+    targets = _lingarr_codes(target_language)
+    return tuple(
+        record
+        for record in records
+        if record.media_type == "Episode"
+        and record.title == display_title
+        and (record.source_language or "") in sources
+        and (record.target_language or "") in targets
+    )
+
+
+def matching_lingarr_records_movie(
+    records: Sequence[TranslationRequestRecord],
+    *,
+    radarr_id: int,
+    display_title: str,
+    source_language: str,
+    target_language: str,
+) -> tuple[TranslationRequestRecord, ...]:
+    sources = _lingarr_codes(source_language)
+    targets = _lingarr_codes(target_language)
+    return tuple(
+        record
+        for record in records
+        if record.media_type == "Movie"
+        # Movies are exactly identifiable (§6.5): the Radarr id must agree when
+        # Lingarr resolved one; title+pair carries it otherwise.
+        and (record.media_id is None or record.media_id == radarr_id)
+        and record.title == display_title
+        and (record.source_language or "") in sources
+        and (record.target_language or "") in targets
+    )
+
+
 def lingarr_evidence_for_episode(
     records: Sequence[TranslationRequestRecord],
     *,
@@ -172,16 +217,15 @@ def lingarr_evidence_for_episode(
     source_language: str,
     target_language: str,
 ) -> LingarrEvidence:
-    sources = _lingarr_codes(source_language)
-    targets = _lingarr_codes(target_language)
     return LingarrEvidence(
         matches=tuple(
             _match(record)
-            for record in records
-            if record.media_type == "Episode"
-            and record.title == display_title
-            and (record.source_language or "") in sources
-            and (record.target_language or "") in targets
+            for record in matching_lingarr_records_episode(
+                records,
+                display_title=display_title,
+                source_language=source_language,
+                target_language=target_language,
+            )
         )
     )
 
@@ -194,19 +238,16 @@ def lingarr_evidence_for_movie(
     source_language: str,
     target_language: str,
 ) -> LingarrEvidence:
-    sources = _lingarr_codes(source_language)
-    targets = _lingarr_codes(target_language)
     return LingarrEvidence(
         matches=tuple(
             _match(record)
-            for record in records
-            if record.media_type == "Movie"
-            # Movies are exactly identifiable (§6.5): the Radarr id must agree
-            # when Lingarr resolved one; title+pair carries it otherwise.
-            and (record.media_id is None or record.media_id == radarr_id)
-            and record.title == display_title
-            and (record.source_language or "") in sources
-            and (record.target_language or "") in targets
+            for record in matching_lingarr_records_movie(
+                records,
+                radarr_id=radarr_id,
+                display_title=display_title,
+                source_language=source_language,
+                target_language=target_language,
+            )
         )
     )
 

@@ -4,6 +4,7 @@ from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 from perevoditarr.modules.doctor.checks import (
+    CircuitBreakerStateCheck,
     ConcurrencyHeadroomCheck,
     LanguageCodeEdgeCasesCheck,
     LanguageProfilesCheck,
@@ -11,6 +12,7 @@ from perevoditarr.modules.doctor.checks import (
     LingarrServiceConfiguredCheck,
     OperationalSanityCheck,
     SubtitleValidationLimitsCheck,
+    TelemetryStreamHealthCheck,
     TranslatorWiringCheck,
     TransportRetryBanCheck,
     UpgradeTranslatedCheck,
@@ -244,6 +246,39 @@ class TestOperationalSanity:
         assert "critical" in _severities(list(findings))
 
 
-def test_registry_contains_all_eleven_checks() -> None:
+def test_headroom_uses_effective_window_k() -> None:
+    # concurrent_jobs=4 with the default K=2 leaves headroom — no finding.
+    healthy = _context(_healthy_instance())
+    assert ConcurrencyHeadroomCheck().run(healthy) == []
+    # A per-instance override of K=4 removes the headroom → warn.
+    no_headroom = _context(_healthy_instance(dispatch_window_k=4))
+    findings = ConcurrencyHeadroomCheck().run(no_headroom)
+    assert _severities(findings) == ["warn"]
+    assert findings[0].data == {"concurrentJobs": 4, "dispatchWindow": 4}
+
+
+def test_breaker_surfacing() -> None:
+    assert CircuitBreakerStateCheck().run(_context(_healthy_instance())) == []
+    open_ctx = _context(
+        _healthy_instance(breaker_state="open", breaker_consecutive_failures=5)
+    )
+    findings = CircuitBreakerStateCheck().run(open_ctx)
+    assert _severities(findings) == ["warn"]
+    assert findings[0].data == {"breakerState": "open", "consecutiveFailures": 5}
+
+
+def test_telemetry_stream_health_surfacing() -> None:
+    assert TelemetryStreamHealthCheck().run(_context(_healthy_instance())) == []
+    degraded = _context(
+        _healthy_instance(telemetry_streams={"bazarr_socketio": "degraded"})
+    )
+    findings = TelemetryStreamHealthCheck().run(degraded)
+    assert _severities(findings) == ["info"]
+    assert findings[0].data == {"streams": ["bazarr_socketio"]}
+
+
+def test_registry_contains_all_checks() -> None:
+    # FR-DR1..FR-DR11 (P1-T6) plus P3 additions: circuit-breaker surfacing
+    # (FR-DR12) and telemetry stream health (FR-DR13).
     ids = sorted(check.check_id for check in all_checks())
-    assert ids == sorted(f"FR-DR{n}" for n in range(1, 12))
+    assert ids == sorted(f"FR-DR{n}" for n in range(1, 14))

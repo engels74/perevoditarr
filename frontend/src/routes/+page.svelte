@@ -1,17 +1,38 @@
 <script lang="ts">
+import {
+	activateInstance,
+	deactivateInstance,
+	getRailsOverview,
+	pauseInstanceRails,
+	pauseRailsGlobal,
+	resumeInstanceRails,
+	resumeRailsGlobal
+} from '$lib/api/endpoints';
+import RailsGauges from '$lib/components/rails-gauges.svelte';
 import { Badge } from '$lib/components/ui/badge';
 import { Button } from '$lib/components/ui/button';
 import * as Card from '$lib/components/ui/card';
 import { formatDateTime, formatLatency, healthBadgeVariant } from '$lib/format';
 import { createDashboardState } from '$lib/state/dashboard.svelte';
 import { instances } from '$lib/state/instances.svelte';
+import { createRailsState } from '$lib/state/rails.svelte';
 import { sse } from '$lib/state/sse.svelte';
 
 const dashboard = createDashboardState();
+const rails = createRailsState({
+	overview: () => getRailsOverview(),
+	pauseGlobal: (reason) => pauseRailsGlobal(reason),
+	resumeGlobal: () => resumeRailsGlobal(),
+	pauseInstance: (id, reason) => pauseInstanceRails(id, reason),
+	resumeInstance: (id) => resumeInstanceRails(id),
+	activate: (id) => activateInstance(id),
+	deactivate: (id) => deactivateInstance(id)
+});
 
 $effect(() => {
 	void instances.load();
 	void dashboard.loadAll();
+	void rails.load();
 });
 
 // Liveness plane only (PRD §7.3): SSE events trigger refetches of the
@@ -24,7 +45,11 @@ $effect(() => {
 			void dashboard.loadFreshness();
 			void dashboard.loadCoverage();
 		}),
-		sse.subscribe('doctor.completed', () => void dashboard.loadDoctor())
+		sse.subscribe('doctor.completed', () => void dashboard.loadDoctor()),
+		sse.subscribe('rails.breaker', () => void rails.load()),
+		sse.subscribe('rails.pause', () => void rails.load()),
+		sse.subscribe('rails.activation', () => void rails.load()),
+		sse.subscribe('intents.dispatched', () => void rails.load())
 	];
 	return () => {
 		for (const unsubscribe of unsubscribes) {
@@ -98,6 +123,32 @@ function coveragePercent(existing: number, wanted: number): number {
 			</div>
 		{/if}
 	</section>
+
+	{#if rails.globalRails && rails.instances.length > 0}
+		<section class="space-y-3">
+			<div class="flex items-center justify-between">
+				<h2 class="text-sm font-medium text-muted-foreground">Rails</h2>
+				<Button href="/queue" variant="outline" size="sm">Manage in Queue</Button>
+			</div>
+			<div class="grid gap-4 lg:grid-cols-2">
+				{#each rails.instances as status (status.bazarrInstanceId)}
+					<Card.Root>
+						<Card.Header class="pb-3">
+							<Card.Title class="flex items-center justify-between gap-2 text-base">
+								<span class="truncate">{status.instanceName}</span>
+								<Badge variant={status.dispatchActive ? 'default' : 'secondary'}>
+									{status.dispatchActive ? 'Active' : 'Observe'}
+								</Badge>
+							</Card.Title>
+						</Card.Header>
+						<Card.Content>
+							<RailsGauges {status} />
+						</Card.Content>
+					</Card.Root>
+				{/each}
+			</div>
+		</section>
+	{/if}
 
 	<div class="grid gap-4 lg:grid-cols-2">
 		<Card.Root>

@@ -9,6 +9,7 @@ import type {
 	ConnectionTestRequest,
 	ConnectionTestResult,
 	CoverageStat,
+	DigestResult,
 	DoctorRunRead,
 	EffectivePolicyRead,
 	EpisodeRead,
@@ -23,6 +24,9 @@ import type {
 	LingarrInstanceRead,
 	LingarrInstanceUpdate,
 	MovieRead,
+	NotificationRouteCreate,
+	NotificationRouteRead,
+	NotificationRouteUpdate,
 	OverrideRead,
 	OverrideUpsert,
 	Page,
@@ -38,8 +42,12 @@ import type {
 	ProfileEditorResponse,
 	ProfileValidateRequest,
 	ProfileValidateResponse,
+	RailStatusDto,
+	RailsOverview,
 	SeriesRead,
 	SyncRunRead,
+	TelemetryHealthResponse,
+	TestFireResult,
 	TranslationProfileCreate,
 	TranslationProfileRead,
 	TranslationProfileUpdate
@@ -549,4 +557,178 @@ export function getPlanPreview(
 		{},
 		fetchFn
 	);
+}
+
+// --- Intents backlog / in-flight (P3-T7 / M2) -------------------------------
+
+export interface QueueQuery {
+	instanceId?: string;
+	limit?: number;
+	offset?: number;
+}
+
+export function listBacklog(
+	query: QueueQuery,
+	fetchFn: FetchLike = fetch
+): Promise<Page<IntentRead>> {
+	return apiFetch<Page<IntentRead>>(
+		`/api/v1/intents/backlog${qs({ bazarr_instance_id: query.instanceId, limit: query.limit, offset: query.offset })}`,
+		{},
+		fetchFn
+	);
+}
+
+export function listInFlight(
+	query: QueueQuery,
+	fetchFn: FetchLike = fetch
+): Promise<Page<IntentRead>> {
+	return apiFetch<Page<IntentRead>>(
+		`/api/v1/intents/in-flight${qs({ bazarr_instance_id: query.instanceId, limit: query.limit, offset: query.offset })}`,
+		{},
+		fetchFn
+	);
+}
+
+// --- Rails, activation, pause/resume (M2) -----------------------------------
+
+export function getRailsOverview(fetchFn: FetchLike = fetch): Promise<RailsOverview> {
+	return apiFetch<RailsOverview>('/api/v1/rails/status', {}, fetchFn);
+}
+
+export function getInstanceRails(id: string, fetchFn: FetchLike = fetch): Promise<RailStatusDto> {
+	return apiFetch<RailStatusDto>(`/api/v1/rails/${id}`, {}, fetchFn);
+}
+
+export function pauseRailsGlobal(
+	reason: string | null,
+	fetchFn: FetchLike = fetch
+): Promise<RailStatusDto> {
+	return apiFetch<RailStatusDto>(
+		'/api/v1/rails/pause',
+		{ method: 'POST', body: JSON.stringify({ reason }) },
+		fetchFn
+	);
+}
+
+export function resumeRailsGlobal(fetchFn: FetchLike = fetch): Promise<RailStatusDto> {
+	return apiFetch<RailStatusDto>('/api/v1/rails/resume', { method: 'POST' }, fetchFn);
+}
+
+export function pauseInstanceRails(
+	id: string,
+	reason: string | null,
+	fetchFn: FetchLike = fetch
+): Promise<RailStatusDto> {
+	return apiFetch<RailStatusDto>(
+		`/api/v1/rails/${id}/pause`,
+		{ method: 'POST', body: JSON.stringify({ reason }) },
+		fetchFn
+	);
+}
+
+export function resumeInstanceRails(
+	id: string,
+	fetchFn: FetchLike = fetch
+): Promise<RailStatusDto> {
+	return apiFetch<RailStatusDto>(`/api/v1/rails/${id}/resume`, { method: 'POST' }, fetchFn);
+}
+
+export function activateInstance(id: string, fetchFn: FetchLike = fetch): Promise<RailStatusDto> {
+	return apiFetch<RailStatusDto>(`/api/v1/rails/${id}/activate`, { method: 'POST' }, fetchFn);
+}
+
+export function deactivateInstance(id: string, fetchFn: FetchLike = fetch): Promise<RailStatusDto> {
+	return apiFetch<RailStatusDto>(`/api/v1/rails/${id}/deactivate`, { method: 'POST' }, fetchFn);
+}
+
+// --- Quarantine + needs-attention (M2) --------------------------------------
+
+export function listQuarantine(
+	query: QueueQuery,
+	fetchFn: FetchLike = fetch
+): Promise<Page<IntentRead>> {
+	return apiFetch<Page<IntentRead>>(
+		`/api/v1/quarantine${qs({ bazarr_instance_id: query.instanceId, limit: query.limit, offset: query.offset })}`,
+		{},
+		fetchFn
+	);
+}
+
+export function listNeedsAttention(
+	query: QueueQuery,
+	fetchFn: FetchLike = fetch
+): Promise<Page<IntentRead>> {
+	return apiFetch<Page<IntentRead>>(
+		`/api/v1/quarantine/needs-attention${qs({ bazarr_instance_id: query.instanceId, limit: query.limit, offset: query.offset })}`,
+		{},
+		fetchFn
+	);
+}
+
+export function retryQuarantined(id: string, fetchFn: FetchLike = fetch): Promise<IntentRead> {
+	return apiFetch<IntentRead>(`/api/v1/quarantine/${id}/retry`, { method: 'POST' }, fetchFn);
+}
+
+export function releaseQuarantined(id: string, fetchFn: FetchLike = fetch): Promise<IntentRead> {
+	return apiFetch<IntentRead>(`/api/v1/quarantine/${id}/release`, { method: 'POST' }, fetchFn);
+}
+
+export function excludeQuarantined(id: string, fetchFn: FetchLike = fetch): Promise<IntentRead> {
+	return apiFetch<IntentRead>(`/api/v1/quarantine/${id}/exclude`, { method: 'POST' }, fetchFn);
+}
+
+// --- Notifications (M2) -----------------------------------------------------
+
+export function listNotificationRoutes(
+	fetchFn: FetchLike = fetch
+): Promise<NotificationRouteRead[]> {
+	return apiFetch<NotificationRouteRead[]>('/api/v1/notifications/routes', {}, fetchFn);
+}
+
+export function createNotificationRoute(
+	body: NotificationRouteCreate,
+	fetchFn: FetchLike = fetch
+): Promise<NotificationRouteRead> {
+	return apiFetch<NotificationRouteRead>(
+		'/api/v1/notifications/routes',
+		{ method: 'POST', body: JSON.stringify(body) },
+		fetchFn
+	);
+}
+
+export function updateNotificationRoute(
+	id: string,
+	body: NotificationRouteUpdate,
+	fetchFn: FetchLike = fetch
+): Promise<NotificationRouteRead> {
+	return apiFetch<NotificationRouteRead>(
+		`/api/v1/notifications/routes/${id}`,
+		{ method: 'PATCH', body: JSON.stringify(body) },
+		fetchFn
+	);
+}
+
+export function deleteNotificationRoute(id: string, fetchFn: FetchLike = fetch): Promise<void> {
+	return apiFetch<void>(`/api/v1/notifications/routes/${id}`, { method: 'DELETE' }, fetchFn);
+}
+
+export function testNotificationRoute(
+	id: string,
+	fetchFn: FetchLike = fetch
+): Promise<TestFireResult> {
+	return apiFetch<TestFireResult>(
+		`/api/v1/notifications/routes/${id}/test`,
+		{ method: 'POST' },
+		fetchFn
+	);
+}
+
+export function sendNotificationDigest(fetchFn: FetchLike = fetch): Promise<DigestResult> {
+	return apiFetch<DigestResult>('/api/v1/notifications/digest', { method: 'POST' }, fetchFn);
+}
+
+// --- Telemetry health (M2) --------------------------------------------------
+
+export function getTelemetryHealth(fetchFn: FetchLike = fetch): Promise<TelemetryHealthResponse> {
+	return apiFetch<TelemetryHealthResponse>('/api/v1/telemetry/health', {}, fetchFn);
 }

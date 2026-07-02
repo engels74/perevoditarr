@@ -72,6 +72,30 @@ export type IncludedVerdictDto = Schemas['IncludedVerdictDto'];
 export type HeldVerdictDto = Schemas['HeldVerdictDto'];
 export type VolumeEstimateDto = Schemas['VolumeEstimateDto'];
 
+// Rails, dispatch, activation (P3-T7 / M2)
+export type RailsOverview = Schemas['RailsOverview'];
+export type RailStatusDto = Schemas['RailStatusDto'];
+export type CapGaugeDto = Schemas['CapGaugeDto'];
+export type BudgetGaugeDto = Schemas['BudgetGaugeDto'];
+export type BreakerDto = Schemas['BreakerDto'];
+export type SchedulingWindowDto = Schemas['SchedulingWindowDto'];
+export type SchedulingWindowInput = Schemas['SchedulingWindowInput'];
+export type PauseRequest = Schemas['PauseRequest'];
+export type WindowsUpdate = Schemas['WindowsUpdate'];
+export type WindowKUpdate = Schemas['WindowKUpdate'];
+
+// Notifications (P3-T5)
+export type NotificationRouteRead = Schemas['NotificationRouteRead'];
+export type NotificationRouteCreate = Schemas['NotificationRouteCreate'];
+export type NotificationRouteUpdate = Schemas['NotificationRouteUpdate'];
+export type TestFireResult = Schemas['TestFireResult'];
+export type DigestResult = Schemas['DigestResult'];
+
+// Telemetry health (P3-T4)
+export type TelemetryHealthResponse = Schemas['TelemetryHealthResponse'];
+export type InstanceTelemetryDto = Schemas['InstanceTelemetryDto'];
+export type StreamHealthDto = Schemas['StreamHealthDto'];
+
 // Error problem body (core/errors.py) — not part of the OpenAPI components.
 export interface Problem {
 	status: number;

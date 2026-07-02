@@ -55,6 +55,14 @@ class BazarrContext(msgspec.Struct, kw_only=True):
     lingarr: LingarrContext | None = None
     mirror_synced_ever: bool = False
     last_sync_finished_at: datetime | None = None
+    # Rails posture (P3-T6): effective dispatch window K and breaker state, for
+    # the headroom sanity check and breaker surfacing.
+    dispatch_window_k: int = 2
+    breaker_state: str = "closed"
+    breaker_consecutive_failures: int = 0
+    # Telemetry stream health (P3-T4/T6): stream name -> state (live|degraded|
+    # down); empty when the telemetry plane is disabled.
+    telemetry_streams: dict[str, str] = msgspec.field(default_factory=dict)
 
 
 class DoctorContext(msgspec.Struct, kw_only=True):

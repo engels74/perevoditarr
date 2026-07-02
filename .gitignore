@@ -228,8 +228,5 @@ vite.config.ts.timestamp-*
 # oh-my-claudecode session state
 .omc/
 
-# omc crap
-docs/adr/
-
 # Local SQLite artifacts (dev runs, CI migration checks)
 backend/*.db

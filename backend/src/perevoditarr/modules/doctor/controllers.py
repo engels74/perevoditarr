@@ -14,6 +14,7 @@ from perevoditarr.modules.auth import AuthRuntime
 from perevoditarr.modules.doctor.schemas import DoctorRunRead
 from perevoditarr.modules.doctor.service import DoctorService
 from perevoditarr.modules.instances import InstanceGateway
+from perevoditarr.modules.telemetry import TelemetryHealthRegistry
 
 
 async def provide_doctor_service(
@@ -21,6 +22,7 @@ async def provide_doctor_service(
     auth_runtime: AuthRuntime,
     gateway: InstanceGateway,
     sse_bus: SseBus,
+    telemetry_health: TelemetryHealthRegistry,
 ) -> DoctorService:
     forward = auth_runtime.forward_auth
     return DoctorService(
@@ -33,6 +35,7 @@ async def provide_doctor_service(
             and forward.enabled
             and not auth_runtime.trusted_networks
         ),
+        telemetry_health=telemetry_health,
     )
 
 

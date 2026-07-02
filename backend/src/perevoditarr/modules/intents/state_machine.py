@@ -62,6 +62,21 @@ TERMINAL_STATES: frozenset[IntentState] = frozenset(
     state for state, targets in TRANSITIONS.items() if not targets
 )
 
+# Manual-only transitions (FR-R6): operator actions on stuck intents that
+# automated processes can never take. A quarantined intent stays terminal for
+# every automated process (discovery/dispatch/reconciliation never re-open it),
+# but an operator may retry it (→ eligible) or release/exclude it (→ superseded).
+# A needs-attention intent (an environmental failure parked in `failed` without
+# retry burn — see verification's NeedsAttention outcome) may likewise be retried
+# (→ eligible) once the operator has cleared the cause; automation only ever
+# moves `failed` on to retry_eligible/quarantined/superseded, never straight back
+# to eligible, so this edge is manual-only. Kept separate from TRANSITIONS so
+# these edges never leak into the auto lifecycle.
+MANUAL_TRANSITIONS: Mapping[IntentState, frozenset[IntentState]] = {
+    IntentState.QUARANTINED: frozenset({IntentState.ELIGIBLE, IntentState.SUPERSEDED}),
+    IntentState.FAILED: frozenset({IntentState.ELIGIBLE}),
+}
+
 
 class IllegalIntentTransition(Exception):
     """Raised on any transition the table does not allow.
@@ -83,4 +98,13 @@ def can_transition(from_state: IntentState, to_state: IntentState) -> bool:
 
 def assert_transition(from_state: IntentState, to_state: IntentState) -> None:
     if not can_transition(from_state, to_state):
+        raise IllegalIntentTransition(from_state, to_state)
+
+
+def can_manual_transition(from_state: IntentState, to_state: IntentState) -> bool:
+    return to_state in MANUAL_TRANSITIONS.get(from_state, frozenset())
+
+
+def assert_manual_transition(from_state: IntentState, to_state: IntentState) -> None:
+    if not can_manual_transition(from_state, to_state):
         raise IllegalIntentTransition(from_state, to_state)

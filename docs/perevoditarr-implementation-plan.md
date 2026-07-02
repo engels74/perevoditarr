@@ -288,51 +288,51 @@ These are distilled from the rules files and PRD §2/§6. Violations are review 
 ## Phase 3 — M2 Orchestrator
 
 ### P3-T1 · Rails subsystem (§8.4; FR-Q3)
-- [ ] Persisted `rail_state`: volume-cap counters (hour/day/week; per instance + global), budget counters, pause flags, breaker states — all restart-safe.
-- [ ] Scheduling windows (cron-like) per instance/profile.
-- [ ] Circuit breaker per (Bazarr instance, Lingarr) pair: consecutive-failure trip, half-open probe interval, auto-close; state transitions emit events + notifications.
-- [ ] Rail evaluation API returning *explained* verdicts ("blocked: daily cap 200/200, resets 06:12") — consumed by dispatcher, plan preview, dashboard gauges.
-- [ ] Unit tests incl. counter rollover, timezone handling for windows, breaker half-open races.
+- [x] Persisted `rail_state`: volume-cap counters (hour/day/week; per instance + global), budget counters, pause flags, breaker states — all restart-safe.
+- [x] Scheduling windows (cron-like) per instance/profile.
+- [x] Circuit breaker per (Bazarr instance, Lingarr) pair: consecutive-failure trip, half-open probe interval, auto-close; state transitions emit events + notifications.
+- [x] Rail evaluation API returning *explained* verdicts ("blocked: daily cap 200/200, resets 06:12") — consumed by dispatcher, plan preview, dashboard gauges.
+- [x] Unit tests incl. counter rollover, timezone handling for windows, breaker half-open races.
 
 ### P3-T2 · Dispatcher (FR-Q1–Q3, Q6; §6.5, §7.2)
-- [ ] Bounded window per instance (default K=2; per-instance override) with headroom rule vs. `concurrent_jobs`.
-- [ ] **Scheduling invariant enforcement** (non-configurable): slot admission checks per (instance, series, src→tgt) / (instance, movie, src→tgt) via ledger in-flight index; concurrency-safe (DB-level uniqueness or advisory locking — decide in tech design, record ADR-0006).
-- [ ] **Pre-dispatch guard** (FR-Q2): re-verify still-wanted (fresh Bazarr call) **and** no matching active Lingarr request at §6.5 granularity; guard failures reroute intent (supersede/park) with trace.
-- [ ] Backpressure: Bazarr jobs-API depth check before top-up (threshold configurable).
-- [ ] Dispatch action: translate PATCH (code2 params: action/language/path/type/id/forced/hi/original_format), stamp lease, transition to `dispatched`; SSE `intents.dispatched`.
-- [ ] Top-up loop reacting to slot frees (convergence/failure) and rail unblocks.
+- [x] Bounded window per instance (default K=2; per-instance override) with headroom rule vs. `concurrent_jobs`.
+- [x] **Scheduling invariant enforcement** (non-configurable): slot admission checks per (instance, series, src→tgt) / (instance, movie, src→tgt) via ledger in-flight index; concurrency-safe (DB-level uniqueness or advisory locking — decide in tech design, record ADR-0006).
+- [x] **Pre-dispatch guard** (FR-Q2): re-verify still-wanted (fresh Bazarr call) **and** no matching active Lingarr request at §6.5 granularity; guard failures reroute intent (supersede/park) with trace.
+- [x] Backpressure: Bazarr jobs-API depth check before top-up (threshold configurable).
+- [x] Dispatch action: translate PATCH (code2 params: action/language/path/type/id/forced/hi/original_format), stamp lease, transition to `dispatched`; SSE `intents.dispatched`.
+- [x] Top-up loop reacting to slot frees (convergence/failure) and rail unblocks.
 
 ### P3-T3 · Verification & failure handling (FR-R2–R5, §7.4)
-- [ ] Convergence detector: metadata presence + history action-6 within lease ⇒ `converged`; presence without our-window translation entry ⇒ `superseded` (budget/stats classified separately, FR-V3).
-- [ ] Lingarr failure fast-path: request Failed/Cancelled ⇒ immediate `failed` with reason.
-- [ ] Lease-expiry pipeline: verify ⇒ classify (transient/environmental/provider/poison) ⇒ retry-eligible (intent-level backoff, max attempts) | needs-attention | breaker feed | quarantine.
-- [ ] Quarantine store + APIs (release/retry/exclude); needs-attention surfacing.
-- [ ] **Crash-safety suite**: kill/restart mid-flight scenarios against simulators — assert retroactive convergence, no duplicate dispatches, invariant preserved (PRD success metric 5).
-- [ ] **Corruption-trap unreachability suite**: adversarial scenarios (two episodes same show+pair queued, races with external actors, restart storms) against the faithful Lingarr simulator — assert the §6.4 empty-array path is never triggered by Perevoditarr traffic (PRD success metric 1).
+- [x] Convergence detector: metadata presence + history action-6 within lease ⇒ `converged`; presence without our-window translation entry ⇒ `superseded` (budget/stats classified separately, FR-V3).
+- [x] Lingarr failure fast-path: request Failed/Cancelled ⇒ immediate `failed` with reason.
+- [x] Lease-expiry pipeline: verify ⇒ classify (transient/environmental/provider/poison) ⇒ retry-eligible (intent-level backoff, max attempts) | needs-attention | breaker feed | quarantine.
+- [x] Quarantine store + APIs (release/retry/exclude); needs-attention surfacing.
+- [x] **Crash-safety suite**: kill/restart mid-flight scenarios against simulators — assert retroactive convergence, no duplicate dispatches, invariant preserved (PRD success metric 5).
+- [x] **Corruption-trap unreachability suite**: adversarial scenarios (two episodes same show+pair queued, races with external actors, restart storms) against the faithful Lingarr simulator — assert the §6.4 empty-array path is never triggered by Perevoditarr traffic (PRD success metric 1).
 
 ### P3-T4 · Telemetry plane (NFR-7; §7.3)
-- [ ] Bazarr Socket.IO client consumer (python-socketio): jobs/series/episode/movie events → internal event bus; fuzzy job correlation (name/path/window) **flagged telemetry-only** in types so it cannot feed the state machine (enforce via module boundary + lint/import test).
-- [ ] Lingarr SignalR consumers (pysignalr): TranslationRequestsHub + JobProgressHub → progress events at §6.5 granularity mapped to the single in-flight intent.
-- [ ] Connection lifecycle: retry/backoff, health status per stream, **automatic degradation to polling** (jobs API / active-requests polling) with seamless upgrade when sockets return.
-- [ ] Bridge to UI SSE topics (`telemetry.*`); nudge hooks into reconciler (event-triggered re-observation — nudges only, never transitions).
+- [x] Bazarr Socket.IO client consumer (python-socketio): jobs/series/episode/movie events → internal event bus; fuzzy job correlation (name/path/window) **flagged telemetry-only** in types so it cannot feed the state machine (enforce via module boundary + lint/import test).
+- [x] Lingarr SignalR consumers (pysignalr): TranslationRequestsHub + JobProgressHub → progress events at §6.5 granularity mapped to the single in-flight intent.
+- [x] Connection lifecycle: retry/backoff, health status per stream, **automatic degradation to polling** (jobs API / active-requests polling) with seamless upgrade when sockets return.
+- [x] Bridge to UI SSE topics (`telemetry.*`); nudge hooks into reconciler (event-triggered re-observation — nudges only, never transitions).
 
 ### P3-T5 · Notifications (FR-X1)
-- [ ] Apprise integration: `notification_route` model (URLs encrypted), per-event routing matrix (breaker trip/close, caps reached, quarantine additions, doctor criticals, daily digest), test-fire endpoint.
-- [ ] Digest job (scheduled): converged/superseded/failed counts, spend estimate vs. actuals, notable findings.
-- [ ] Rate-limit notification spam (coalescing window per event type).
+- [x] Apprise integration: `notification_route` model (URLs encrypted), per-event routing matrix (breaker trip/close, caps reached, quarantine additions, doctor criticals, daily digest), test-fire endpoint.
+- [x] Digest job (scheduled): converged/superseded/failed counts, spend estimate vs. actuals, notable findings.
+- [x] Rate-limit notification spam (coalescing window per event type).
 
 ### P3-T6 · Hardening & guards
-- [ ] Transport-retry ban test: assert every outbound client transport has retries disabled (FR-DR9 self-check + CI test).
-- [ ] Doctor additions: rails misconfig sanity (K vs. `concurrent_jobs` live check), telemetry stream health, breaker state surfacing.
-- [ ] Load test: sustained dispatch against simulators at scale; verify NFR-4 UI budgets hold during heavy reconciliation.
+- [x] Transport-retry ban test: assert every outbound client transport has retries disabled (FR-DR9 self-check + CI test).
+- [x] Doctor additions: rails misconfig sanity (K vs. `concurrent_jobs` live check), telemetry stream health, breaker state surfacing. *(Doctor FR-DR8 headroom uses the live effective K; breaker surfacing = FR-DR12; telemetry stream health = FR-DR13.)*
+- [x] Load test: sustained dispatch against simulators at scale; verify NFR-4 UI budgets hold during heavy reconciliation.
 - [ ] Optional nightly e2e workflow against real `bazarr:v1.5.6` + pinned Lingarr containers (compose harness; smoke path: register → discover → dry-run → single real dispatch on a fixture library).
 
 ### P3-T7 · Frontend M2
-- [ ] **Queue view** (FR-U2): backlog (priority-ordered, bump-to-front), in-flight with live progress bars (telemetry SSE), needs-attention + quarantine tabs with actions, per-instance grouping.
-- [ ] **Rails gauges** on dashboard + queue: live cap/budget/window/breaker states with explanations; global + per-instance pause/resume controls (persisted).
-- [ ] **Activation flow**: explicit Observe → Active transition per instance/profile with confirmation summarizing rails in force (safe-by-default UX).
-- [ ] Notification settings UI with per-event routing and test button.
-- [ ] Live-degradation indicator (websocket vs. polling telemetry) in the status bar.
+- [x] **Queue view** (FR-U2): backlog (priority-ordered, bump-to-front), in-flight with live progress bars (telemetry SSE), needs-attention + quarantine tabs with actions, per-instance grouping.
+- [x] **Rails gauges** on dashboard + queue: live cap/budget/window/breaker states with explanations; global + per-instance pause/resume controls (persisted).
+- [x] **Activation flow**: explicit Observe → Active transition per instance/profile with confirmation summarizing rails in force (safe-by-default UX).
+- [x] Notification settings UI with per-event routing and test button.
+- [x] Live-degradation indicator (websocket vs. polling telemetry) in the status bar.
 
 **Phase 3 / M2 exit (PRD):** end-to-end automated translation on a real stack; rails demonstrably enforced; corruption-trap and crash-safety suites green; notifications firing.
 

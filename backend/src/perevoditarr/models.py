@@ -17,6 +17,7 @@ from perevoditarr.modules.mirror.models import (
     SyncRun,
     WantedSubtitle,
 )
+from perevoditarr.modules.notifications.models import NotificationRoute
 from perevoditarr.modules.policy.models import (
     Exclusion,
     Override,
@@ -24,6 +25,7 @@ from perevoditarr.modules.policy.models import (
     ProfileAssignment,
     TranslationProfile,
 )
+from perevoditarr.modules.rails.models import RailState
 
 __all__ = [
     "ApiKey",
@@ -37,9 +39,11 @@ __all__ = [
     "IntentEvent",
     "LingarrInstance",
     "Movie",
+    "NotificationRoute",
     "Override",
     "Preset",
     "ProfileAssignment",
+    "RailState",
     "Series",
     "Subtitle",
     "SyncRun",

@@ -33,10 +33,13 @@ REQUIRED_MODE = "recommended"
 REQUIRED_INCLUDE = frozenset({"src", "tests", "tools"})
 FORBIDDEN_PATHS = ("pyrightconfig.json", ".basedpyright")
 
-# A comment starting a line that configures pyright for the whole file
-# (e.g. ``basic`` mode or ``reportFoo=false``). Inline, rule-scoped ignore
-# comments never start a line, so they are not matched.
-FILE_PRAGMA = re.compile(r"^\s*#\s*(?:based)?pyright:\s*(?!ignore\[)")
+# A standalone comment line that configures pyright for the whole file
+# (e.g. ``basic`` mode or ``reportFoo=false``). The ``(?!\s*ignore\[)``
+# lookahead exempts rule-scoped ``ignore[...]`` suppressions in every spacing
+# variant, so a leading ``pyright: ignore[ruleName]`` comment is not flagged;
+# a trailing suppression on a code line never starts with ``#`` and so never
+# matches ``.match()`` at all.
+FILE_PRAGMA = re.compile(r"^\s*#\s*(?:based)?pyright:(?!\s*ignore\[)")
 
 
 def load_table(pyproject: Path) -> dict[str, object]:

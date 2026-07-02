@@ -44,6 +44,6 @@ def as_list(value: object) -> list[object]:
 
 def load_json_obj(path: Path) -> dict[str, object]:
     """Load a JSON fixture file whose top level is an object."""
-    body: object = json.loads(path.read_text())  # pyright: ignore[reportAny]  # json.loads -> Any boundary
+    body: object = json.loads(path.read_text(encoding="utf-8"))  # pyright: ignore[reportAny]  # json.loads -> Any boundary
     assert isinstance(body, dict), f"expected JSON object, got {type(body).__name__}"
     return cast("dict[str, object]", body)

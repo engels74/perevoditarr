@@ -7,7 +7,11 @@ from litestar.testing import TestClient
 
 from perevoditarr.app import create_app
 from perevoditarr.core.settings import AppSettings
-from tests.conftest import TEST_SECRET, _create_schema, complete_setup
+from tests.conftest import (
+    TEST_SECRET,
+    _create_schema,  # pyright: ignore[reportPrivateUsage]  # conftest's module-private schema provisioner, reused to build isolated apps
+    complete_setup,
+)
 
 
 class _OpenAPIPaths(msgspec.Struct):

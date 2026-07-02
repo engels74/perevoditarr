@@ -11,6 +11,7 @@ from perevoditarr.modules.integrations.lingarr.client import (
     ensure_supported_version,
 )
 from tests.simulators.scenario import Scenario, asgi_client
+from tests.support import json_list
 
 
 @pytest.fixture
@@ -164,7 +165,7 @@ class TestSeamSemantics:
         }
         try:
             # first request is answered with translated lines...
-            scenario.lingarr.add_request(
+            _ = scenario.lingarr.add_request(
                 media_id=None,
                 title="Show A",
                 source_language="en",
@@ -176,7 +177,7 @@ class TestSeamSemantics:
             assert response.status_code == 200
             # ...but an active identical identity yields the empty array —
             # a "successful" response with zero translated lines (§6.4).
-            assert response.json() == []
+            assert json_list(response) == []
         finally:
             await http.aclose()
 

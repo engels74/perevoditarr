@@ -5,13 +5,14 @@ shares a single authorization model (FR-API3).
 """
 
 import ipaddress
-from typing import Any, ClassVar
+from typing import ClassVar, override
 from uuid import UUID
 
 from advanced_alchemy.extensions.litestar import SQLAlchemyAsyncConfig
 from litestar import Response
 from litestar.connection import ASGIConnection
 from litestar.datastructures import State
+from litestar.enums import ScopeType
 from litestar.exceptions import NotAuthorizedException, PermissionDeniedException
 from litestar.handlers.base import BaseRouteHandler
 from litestar.middleware.authentication import AuthenticationResult
@@ -39,7 +40,7 @@ from perevoditarr.modules.auth.service import AuthService, ProviderConfigService
 
 API_KEY_HEADER = "X-API-KEY"
 
-type _AnyConnection = ASGIConnection[Any, Any, Any, Any]
+type _AnyConnection = ASGIConnection[object, object, object, State]
 type _IpNetwork = ipaddress.IPv4Network | ipaddress.IPv6Network
 
 
@@ -109,6 +110,7 @@ def auth_runtime(state: State) -> AuthRuntime:
 
 
 class PerevoditarrAuthMiddleware(JWTCookieAuthenticationMiddleware):
+    @override
     async def authenticate_request(
         self, connection: _AnyConnection
     ) -> AuthenticationResult:
@@ -124,12 +126,12 @@ class PerevoditarrAuthMiddleware(JWTCookieAuthenticationMiddleware):
                 raise NotAuthorizedException("invalid API key")
             return AuthenticationResult(user=user, auth="api-key")
 
-        client = connection.scope.get("client")
+        client = connection.client
         forward = runtime.forward_auth
         if (
             forward is not None
             and forward.enabled
-            and runtime.client_is_trusted_proxy(client[0] if client else None)
+            and runtime.client_is_trusted_proxy(client.host if client else None)
         ):
             username = connection.headers.get(forward.user_header)
             if username:
@@ -196,7 +198,9 @@ class SessionAuthenticator:
         )
 
     def session_cookie_value(self, identifier: str) -> str:
-        token = self._jwt_auth.create_token(identifier=identifier)
+        # litestar types create_token's token_extras as a bare dict, so the
+        # bound method surfaces as partially-unknown at this call site.
+        token = self._jwt_auth.create_token(identifier=identifier)  # pyright: ignore[reportUnknownMemberType]
         return self._jwt_auth.format_auth_header(token)
 
     @property
@@ -211,7 +215,7 @@ def setup_gate_middleware(app: ASGIApp) -> ASGIApp:
     """While no user exists, the API exposes only /api/v1/setup (FR-A1)."""
 
     async def middleware(scope: Scope, receive: Receive, send: Send) -> None:
-        if scope["type"] == "http":
+        if scope["type"] == ScopeType.HTTP:
             path = scope["path"]
             if path.startswith("/api/") and not path.startswith(
                 _SETUP_ALLOWED_PREFIXES
@@ -229,8 +233,9 @@ def setup_gate_middleware(app: ASGIApp) -> ASGIApp:
 class ApiKeyAwareCSRFMiddleware(CSRFMiddleware):
     """CSRF protects cookie sessions; API-key requests carry no cookies and skip it."""
 
+    @override
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        if scope["type"] == "http":
+        if scope["type"] == ScopeType.HTTP:
             headers = dict(scope["headers"])
             if headers.get(API_KEY_HEADER.lower().encode("latin-1")):
                 await self.app(scope, receive, send)

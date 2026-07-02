@@ -8,6 +8,7 @@ import argparse
 import sys
 from importlib.metadata import version
 from pathlib import Path
+from typing import cast
 
 import msgspec
 
@@ -40,8 +41,11 @@ def main() -> None:
     _ = export.add_argument("--out", default=None, help="output file (default stdout)")
 
     args = parser.parse_args()
-    if args.command == "export-openapi":
-        out = args.out
+    # argparse.Namespace attributes are dynamically typed (Any); launder them
+    # through `object` so the isinstance guard below is a real narrowing.
+    command = cast("object", args.command)
+    if command == "export-openapi":
+        out = cast("object", args.out)
         _export_openapi(out if out is None or isinstance(out, str) else str(out))
     else:
         parser.print_help()

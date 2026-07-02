@@ -67,14 +67,14 @@ def _validate(settings: AppSettings) -> None:
     if scheme not in _ALLOWED_DB_SCHEMES:
         raise SettingsError(
             f"{ENV_PREFIX}DATABASE_URL scheme must be one of "
-            f"{sorted(_ALLOWED_DB_SCHEMES)}, got {scheme!r}"
+            + f"{sorted(_ALLOWED_DB_SCHEMES)}, got {scheme!r}"
         )
     if settings.env == "prod" and (
         settings.secret_key is None or len(settings.secret_key) < _MIN_SECRET_KEY_LENGTH
     ):
         raise SettingsError(
             f"{ENV_PREFIX}SECRET_KEY of at least {_MIN_SECRET_KEY_LENGTH} characters "
-            "is required when PEREVODITARR_ENV=prod"
+            + "is required when PEREVODITARR_ENV=prod"
         )
     for field_name in (
         "health_interval_seconds",

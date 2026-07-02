@@ -12,7 +12,6 @@ from importlib.metadata import version
 from pathlib import Path
 
 import msgspec
-import structlog
 from litestar import Litestar, MediaType, Request, Response, Router, get
 from litestar.config.app import AppConfig
 from litestar.config.csrf import CSRFConfig
@@ -32,7 +31,11 @@ from litestar_granian import GranianPlugin
 from perevoditarr.core.db import build_alchemy_config, build_sqlalchemy_plugin
 from perevoditarr.core.errors import PerevoditarrError, domain_exception_handler
 from perevoditarr.core.http import HttpClientRegistry
-from perevoditarr.core.logging import build_structlog_plugin, request_id_middleware
+from perevoditarr.core.logging import (
+    build_structlog_plugin,
+    get_logger,
+    request_id_middleware,
+)
 from perevoditarr.core.security import SecretBox, derive_key, resolve_secret_key
 from perevoditarr.core.settings import AppSettings, load_settings
 from perevoditarr.core.sse import SseBus, sse_events
@@ -259,15 +262,13 @@ def create_app(settings: AppSettings | None = None) -> Litestar:
             except asyncio.CancelledError:
                 raise
             except Exception as error:
-                structlog.get_logger().warning(
-                    "scheduled doctor run failed", error=str(error)
-                )
+                get_logger().warning("scheduled doctor run failed", error=str(error))
 
     async def _load_auth_providers() -> None:
         try:
             await auth_runtime.refresh_providers()
         except Exception as error:
-            structlog.get_logger().warning(
+            get_logger().warning(
                 "auth provider configs unavailable at startup", error=str(error)
             )
 

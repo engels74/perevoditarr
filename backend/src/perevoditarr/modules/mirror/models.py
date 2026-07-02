@@ -21,13 +21,14 @@ from sqlalchemy import (
     UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.schema import SchemaItem
 
 from perevoditarr.core.db import UUIDv7AuditBase
 
 
 class Series(UUIDv7AuditBase):
-    __tablename__ = "series"
-    __table_args__ = (
+    __tablename__: str | None = "series"
+    __table_args__: tuple[SchemaItem, ...] = (
         UniqueConstraint("bazarr_instance_id", "sonarr_series_id"),
         Index("ix_series_instance_sort_title", "bazarr_instance_id", "sort_title"),
     )
@@ -52,8 +53,8 @@ class Series(UUIDv7AuditBase):
 
 
 class Episode(UUIDv7AuditBase):
-    __tablename__ = "episode"
-    __table_args__ = (
+    __tablename__: str | None = "episode"
+    __table_args__: tuple[SchemaItem, ...] = (
         UniqueConstraint("bazarr_instance_id", "sonarr_episode_id"),
         Index(
             "ix_episode_instance_series_number",
@@ -91,8 +92,8 @@ class Episode(UUIDv7AuditBase):
 
 
 class Movie(UUIDv7AuditBase):
-    __tablename__ = "movie"
-    __table_args__ = (
+    __tablename__: str | None = "movie"
+    __table_args__: tuple[SchemaItem, ...] = (
         UniqueConstraint("bazarr_instance_id", "radarr_id"),
         Index("ix_movie_instance_sort_title", "bazarr_instance_id", "sort_title"),
     )
@@ -120,8 +121,8 @@ class Movie(UUIDv7AuditBase):
 class Subtitle(UUIDv7AuditBase):
     """An existing subtitle (file or embedded track) as Bazarr reports it."""
 
-    __tablename__ = "subtitle"
-    __table_args__ = (
+    __tablename__: str | None = "subtitle"
+    __table_args__: tuple[SchemaItem, ...] = (
         Index("ix_subtitle_instance_language", "bazarr_instance_id", "language"),
     )
 
@@ -151,8 +152,8 @@ class Subtitle(UUIDv7AuditBase):
 class WantedSubtitle(UUIDv7AuditBase):
     """A missing subtitle Bazarr wants — the discovery feed (FR-M1/FR-P1)."""
 
-    __tablename__ = "wanted_subtitle"
-    __table_args__ = (
+    __tablename__: str | None = "wanted_subtitle"
+    __table_args__: tuple[SchemaItem, ...] = (
         # Explicit names: both constraints start with bazarr_instance_id, and
         # the naming convention (uq_<table>_<column_0_name>) keys off only the
         # first column, so the default-generated names collide (PostgreSQL
@@ -197,8 +198,8 @@ class WantedSubtitle(UUIDv7AuditBase):
 
 
 class SyncRun(UUIDv7AuditBase):
-    __tablename__ = "sync_run"
-    __table_args__ = (
+    __tablename__: str | None = "sync_run"
+    __table_args__: tuple[SchemaItem, ...] = (
         Index("ix_sync_run_instance_created", "bazarr_instance_id", "created_at"),
     )
 

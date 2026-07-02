@@ -13,13 +13,15 @@ from collections import deque
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from typing import Literal
+from typing import Literal, cast
 
 import httpx
 from litestar import Litestar, MediaType, Request, Response, get
 from litestar.datastructures import State
 from litestar.handlers import delete as http_delete
 from litestar.handlers import patch as http_patch
+
+from tests.support import json_list
 
 type _Req = Request[object, object, State]
 
@@ -132,13 +134,13 @@ class BazarrSimulator:
         lingarr_token: str = "lingarr-key",
         now: Callable[[], datetime] | None = None,
     ) -> None:
-        self.api_key = api_key
-        self.version = version
-        self.concurrent_jobs = 4
-        self.upgrade_manual = True
-        self.translator_type = "lingarr"
-        self.lingarr_url = lingarr_url
-        self.lingarr_token = lingarr_token
+        self.api_key: str = api_key
+        self.version: str = version
+        self.concurrent_jobs: int = 4
+        self.upgrade_manual: bool = True
+        self.translator_type: str = "lingarr"
+        self.lingarr_url: str = lingarr_url
+        self.lingarr_token: str = lingarr_token
         self.now: Callable[[], datetime] = now or (lambda: datetime.now(UTC))
 
         self.series: dict[int, SimSeries] = {}
@@ -160,7 +162,7 @@ class BazarrSimulator:
             }
         ]
 
-        self._next_job_id = 0
+        self._next_job_id: int = 0
         self.jobs_pending: deque[SimJob] = deque()
         self.jobs_running: deque[SimJob] = deque()
         self.jobs_failed: deque[SimJob] = deque(maxlen=10)  # §6.2 cap
@@ -269,7 +271,10 @@ class BazarrSimulator:
             if (denied := guard(request)) is not None:
                 return denied  # pyright: ignore[reportReturnType]
             wanted_series = {
-                int(v) for v in request.query_params.getall("seriesid[]", [])
+                int(v)
+                for v in cast(
+                    "list[str]", request.query_params.getall("seriesid[]", [])
+                )
             }
             rows = [
                 {
@@ -434,8 +439,8 @@ class BazarrSimulator:
             media_id = int(str(params.get("id")))
             language = str(params.get("language"))
             path = str(params.get("path"))
-            forced = params.get("forced") == "True"
-            hi = params.get("hi") == "True"
+            forced = str(params.get("forced")) == "True"
+            hi = str(params.get("hi")) == "True"
 
             if media_type == "episode":
                 episode = sim.episodes.get(media_id)
@@ -559,7 +564,7 @@ class BazarrSimulator:
             self._finish_job(job, "failed")
             return job
 
-        lines: list[dict[str, object]] = response.json()
+        lines = json_list(response)
         self._save_translated(media_type, media_id, to_lang, payload, empty=not lines)
         job.job_name = job.job_name.replace("Translating", "Translated", 1)
         self._finish_job(job, "completed")

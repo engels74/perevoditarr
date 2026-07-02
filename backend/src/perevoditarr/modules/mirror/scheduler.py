@@ -2,15 +2,15 @@
 
 import asyncio
 
-import structlog
 from advanced_alchemy.extensions.litestar import SQLAlchemyAsyncConfig
 
+from perevoditarr.core.logging import get_logger
 from perevoditarr.core.security import SecretBox
 from perevoditarr.core.sse import SseBus
 from perevoditarr.modules.instances import InstanceGateway, InstancesService
 from perevoditarr.modules.mirror.sync import MirrorSyncService
 
-_logger = structlog.get_logger()
+_logger = get_logger()
 
 
 async def _sync_all(

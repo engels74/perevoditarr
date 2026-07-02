@@ -2,8 +2,6 @@
 
 from datetime import timedelta
 
-import httpx
-
 from perevoditarr.core.http import build_transport
 from perevoditarr.modules.doctor.framework import (
     BazarrContext,
@@ -363,7 +361,7 @@ class SubtitleValidationLimitsCheck:
 
     check_id: str = "FR-DR7"
 
-    _MIN_REASONABLE_FILE_SIZE = 1_048_576  # 1 MiB
+    _MIN_REASONABLE_FILE_SIZE: int = 1_048_576  # 1 MiB
 
     def run(self, context: DoctorContext) -> list[Finding]:
         findings: list[Finding] = []
@@ -447,7 +445,7 @@ class TransportRetryBanCheck:
         transport = build_transport()
         pool: object = transport._pool  # pyright: ignore[reportPrivateUsage]
         retries = getattr(pool, "_retries", None)
-        if isinstance(transport, httpx.AsyncHTTPTransport) and retries == 0:
+        if retries == 0:
             return [
                 Finding(
                     check_id=self.check_id,

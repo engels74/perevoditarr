@@ -6,7 +6,8 @@ the pinned upstream versions move; the contract tests are the tripwire.
 """
 
 from tests.simulators.bazarr import BazarrSimulator
+from tests.simulators.clock import SimClock
 from tests.simulators.lingarr import LingarrSimulator
-from tests.simulators.scenario import Scenario, SimClock
+from tests.simulators.scenario import Scenario
 
 __all__ = ["BazarrSimulator", "LingarrSimulator", "Scenario", "SimClock"]

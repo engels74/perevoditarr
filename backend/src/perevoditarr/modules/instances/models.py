@@ -15,7 +15,7 @@ from perevoditarr.core.db import UUIDAuditBase
 
 
 class LingarrInstance(UUIDAuditBase):
-    __tablename__ = "lingarr_instance"
+    __tablename__: str | None = "lingarr_instance"
 
     name: Mapped[str] = mapped_column(String(64), unique=True)
     url: Mapped[str] = mapped_column(String(512))
@@ -30,7 +30,7 @@ class LingarrInstance(UUIDAuditBase):
 
 
 class BazarrInstance(UUIDAuditBase):
-    __tablename__ = "bazarr_instance"
+    __tablename__: str | None = "bazarr_instance"
 
     name: Mapped[str] = mapped_column(String(64), unique=True)
     url: Mapped[str] = mapped_column(String(512))

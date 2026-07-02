@@ -1,5 +1,9 @@
 from litestar import get
-from litestar.testing import create_test_client
+
+# litestar's own signature for create_test_client is partially unknown.
+from litestar.testing import (
+    create_test_client,  # pyright: ignore[reportUnknownVariableType]
+)
 
 from perevoditarr.core.errors import (
     NotFoundError,
@@ -7,6 +11,7 @@ from perevoditarr.core.errors import (
     UnsupportedVersionError,
     domain_exception_handler,
 )
+from tests.support import json_obj
 
 
 @get("/boom")
@@ -26,13 +31,16 @@ def test_domain_errors_map_to_typed_problem_responses() -> None:
     ) as client:
         response = client.get("/boom")
         assert response.status_code == 422
-        body = response.json()
+        body = json_obj(response)
         assert body["code"] == "unsupported-version"
-        assert "1.5.6" in body["detail"]
+        detail = body["detail"]
+        assert isinstance(detail, str)
+        assert "1.5.6" in detail
         assert body["status"] == 422
 
         response = client.get("/missing")
         assert response.status_code == 404
-        assert response.json()["code"] == "not-found"
+        missing_body = json_obj(response)
+        assert missing_body["code"] == "not-found"
         # camelCase policy: no snake_case keys on the wire
-        assert "status_code" not in response.json()
+        assert "status_code" not in missing_body

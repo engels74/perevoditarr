@@ -5,7 +5,6 @@ provider fixtures the plan calls for; both providers run the same
 authorization-code + PKCE path.
 """
 
-import json
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
@@ -16,6 +15,7 @@ from litestar import Litestar
 from litestar.testing import TestClient
 
 from tests.conftest import complete_setup, csrf_headers
+from tests.support import json_obj, load_json_obj
 
 FIXTURES = Path(__file__).parent.parent / "fixtures" / "oidc"
 
@@ -33,15 +33,22 @@ def _configure_oidc(client: TestClient[Litestar], issuer: str) -> None:
         headers=csrf_headers(client),
     )
     assert response.status_code == 200, response.text
-    body = response.json()
+    body = json_obj(response)
     assert body["clientSecretSet"] is True
     assert "clientSecret" not in body  # write-only (FR-A5)
 
 
 @pytest.mark.parametrize("provider", ["authentik", "authelia"])
 def test_oidc_login_flow(app: Litestar, provider: str) -> None:
-    discovery = json.loads((FIXTURES / f"{provider}.json").read_text())
-    issuer: str = discovery["issuer"]
+    discovery = load_json_obj(FIXTURES / f"{provider}.json")
+    issuer = discovery["issuer"]
+    assert isinstance(issuer, str)
+    token_endpoint = discovery["token_endpoint"]
+    assert isinstance(token_endpoint, str)
+    userinfo_endpoint = discovery["userinfo_endpoint"]
+    assert isinstance(userinfo_endpoint, str)
+    authorization_endpoint = discovery["authorization_endpoint"]
+    assert isinstance(authorization_endpoint, str)
 
     with TestClient(app=app) as admin:
         complete_setup(admin)
@@ -51,12 +58,12 @@ def test_oidc_login_flow(app: Litestar, provider: str) -> None:
         _ = router.get(f"{issuer.rstrip('/')}/.well-known/openid-configuration").mock(
             return_value=MockResponse(200, json=discovery)
         )
-        _ = router.post(discovery["token_endpoint"]).mock(
+        _ = router.post(token_endpoint).mock(
             return_value=MockResponse(
                 200, json={"access_token": "at-123", "token_type": "Bearer"}
             )
         )
-        _ = router.get(discovery["userinfo_endpoint"]).mock(
+        _ = router.get(userinfo_endpoint).mock(
             return_value=MockResponse(
                 200,
                 json={
@@ -71,7 +78,7 @@ def test_oidc_login_flow(app: Litestar, provider: str) -> None:
             start = browser.get("/api/v1/auth/oidc/login", follow_redirects=False)
             assert start.status_code == 302
             location = start.headers["location"]
-            assert location.startswith(discovery["authorization_endpoint"])
+            assert location.startswith(authorization_endpoint)
             query = parse_qs(urlsplit(location).query)
             assert query["code_challenge_method"] == ["S256"]
             state = query["state"][0]
@@ -85,13 +92,15 @@ def test_oidc_login_flow(app: Litestar, provider: str) -> None:
 
             me = browser.get("/api/v1/auth/me")
             assert me.status_code == 200
-            assert me.json()["username"] == "eve"
-            assert me.json()["email"] == "eve@example.com"
+            me_body = json_obj(me)
+            assert me_body["username"] == "eve"
+            assert me_body["email"] == "eve@example.com"
 
 
 def test_oidc_callback_rejects_state_mismatch(app: Litestar) -> None:
-    discovery = json.loads((FIXTURES / "authelia.json").read_text())
-    issuer: str = discovery["issuer"]
+    discovery = load_json_obj(FIXTURES / "authelia.json")
+    issuer = discovery["issuer"]
+    assert isinstance(issuer, str)
 
     with TestClient(app=app) as admin:
         complete_setup(admin)
@@ -118,6 +127,6 @@ def test_oidc_login_disabled_by_default(app: Litestar) -> None:
         complete_setup(client)
         providers = client.get("/api/v1/auth/providers")
         assert providers.status_code == 200
-        assert providers.json() == {"builtin": True, "oidc": None}
+        assert json_obj(providers) == {"builtin": True, "oidc": None}
         response = client.get("/api/v1/auth/oidc/login", follow_redirects=False)
         assert response.status_code == 422

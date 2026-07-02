@@ -230,3 +230,6 @@ vite.config.ts.timestamp-*
 
 # omc crap
 docs/adr/
+
+# Local SQLite artifacts (dev runs, CI migration checks)
+backend/*.db

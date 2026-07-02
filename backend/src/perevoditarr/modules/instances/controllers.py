@@ -68,7 +68,7 @@ async def _probe_bazarr(
 
 
 class InstancesController(Controller):
-    path = "/instances"
+    path: str = "/instances"
     tags: Sequence[str] | None = ("instances",)
 
     # --- listing ----------------------------------------------------------
@@ -240,8 +240,7 @@ class InstancesController(Controller):
             or not translator.lingarr_url
         ):
             raise DomainValidationError(
-                "this Bazarr instance has no Lingarr configured "
-                "(Settings → Subtitles → Translating)"
+                "this Bazarr instance has no Lingarr configured (Settings → Subtitles → Translating)"
             )
         lingarr_client = gateway.lingarr(
             translator.lingarr_url.rstrip("/"), translator.lingarr_token or None

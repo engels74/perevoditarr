@@ -10,12 +10,12 @@ fabricates disappearances.
 from datetime import UTC, datetime
 from uuid import UUID
 
-import structlog
 from sqlalchemy import CursorResult, Table, delete, insert, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from perevoditarr.core.logging import get_logger
 from perevoditarr.core.sse import SseBus
 from perevoditarr.modules.instances import InstanceGateway, InstancesService
 from perevoditarr.modules.integrations.bazarr import BazarrClient
@@ -29,7 +29,7 @@ from perevoditarr.modules.mirror.models import (
     WantedSubtitle,
 )
 
-_logger = structlog.get_logger()
+_logger = get_logger()
 
 SERIES_PAGE_SIZE = 250
 MOVIES_PAGE_SIZE = 250
@@ -210,7 +210,7 @@ class MirrorSyncService:
                 Series.bazarr_instance_id == instance_id
             )
         )
-        return {int(sonarr_id): row_id for sonarr_id, row_id in result.all()}
+        return {int(sonarr_id): row_id for sonarr_id, row_id in result.tuples().all()}
 
     async def _store_episodes(
         self,
@@ -297,7 +297,7 @@ class MirrorSyncService:
                 Episode.sonarr_episode_id.in_(sonarr_episode_ids),
             )
         )
-        return {int(sonarr_id): row_id for sonarr_id, row_id in result.all()}
+        return {int(sonarr_id): row_id for sonarr_id, row_id in result.tuples().all()}
 
     async def _store_movies(self, instance_id: UUID, movies: list[MovieItem]) -> int:
         rows: list[dict[str, object]] = []
@@ -373,7 +373,7 @@ class MirrorSyncService:
                 Movie.radarr_id.in_(radarr_ids),
             )
         )
-        return {int(radarr_id): row_id for radarr_id, row_id in result.all()}
+        return {int(radarr_id): row_id for radarr_id, row_id in result.tuples().all()}
 
     async def _remove_vanished_series(self, instance_id: UUID, seen: set[int]) -> None:
         existing = await self.session.scalars(

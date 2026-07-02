@@ -8,7 +8,7 @@ loads. A bare lazy="select" would MissingGreenlet under async at runtime.
 from advanced_alchemy.base import orm_registry
 from sqlalchemy.orm import configure_mappers
 
-from perevoditarr import models as _models  # noqa: F401  # register all mappers
+from perevoditarr import models as models  # register all mappers (re-export)
 from perevoditarr.core.db import metadata
 
 _ALLOWED_LAZY = {"raise", "raise_on_sql", "selectin", "joined", "noload", "write_only"}

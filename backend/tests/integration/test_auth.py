@@ -13,10 +13,11 @@ from tests.conftest import (
     ADMIN_PASSWORD,
     ADMIN_USERNAME,
     TEST_SECRET,
-    _create_schema,
+    _create_schema,  # pyright: ignore[reportPrivateUsage]  # conftest's module-private schema provisioner, reused to build an isolated trusted-proxy app
     complete_setup,
     csrf_headers,
 )
+from tests.support import as_obj, json_list, json_obj
 
 
 class TestSetupFlow:
@@ -25,10 +26,10 @@ class TestSetupFlow:
     ) -> None:
         status = client.get("/api/v1/setup/status")
         assert status.status_code == 200
-        assert status.json() == {"required": True}
+        assert json_obj(status) == {"required": True}
         blocked = client.get("/api/v1/auth/me")
         assert blocked.status_code == 403
-        assert blocked.json()["code"] == "setup-required"
+        assert json_obj(blocked)["code"] == "setup-required"
 
     def test_setup_creates_admin_and_logs_in(
         self, client: TestClient[Litestar]
@@ -36,10 +37,11 @@ class TestSetupFlow:
         complete_setup(client)
         me = client.get("/api/v1/auth/me")
         assert me.status_code == 200
-        assert me.json()["username"] == ADMIN_USERNAME
-        assert me.json()["isAdmin"] is True
+        me_body = json_obj(me)
+        assert me_body["username"] == ADMIN_USERNAME
+        assert me_body["isAdmin"] is True
         status = client.get("/api/v1/setup/status")
-        assert status.json() == {"required": False}
+        assert json_obj(status) == {"required": False}
 
     def test_setup_locks_out_after_first_user(
         self, client: TestClient[Litestar]
@@ -50,7 +52,7 @@ class TestSetupFlow:
             json={"username": "second", "password": "another-password-123"},
         )
         assert again.status_code == 409
-        assert again.json()["code"] == "conflict"
+        assert json_obj(again)["code"] == "conflict"
 
     def test_weak_setup_password_rejected(self, client: TestClient[Litestar]) -> None:
         response = client.post(
@@ -81,7 +83,7 @@ class TestSessions:
                 json={"username": ADMIN_USERNAME, "password": ADMIN_PASSWORD},
             )
             assert login.status_code == 200
-            assert login.json()["username"] == ADMIN_USERNAME
+            assert json_obj(login)["username"] == ADMIN_USERNAME
             assert client.get("/api/v1/auth/me").status_code == 200
 
             refresh = client.post("/api/v1/auth/refresh", headers=csrf_headers(client))
@@ -110,16 +112,18 @@ class TestApiKeys:
                 headers=csrf_headers(client),
             )
             assert created.status_code == 201, created.text
-            payload = created.json()
+            payload = json_obj(created)
             raw_key = payload["key"]
+            assert isinstance(raw_key, str)
             assert raw_key.startswith("pvd_")
             assert payload["prefix"] == raw_key[:12]
 
             listing = client.get("/api/v1/auth/api-keys")
             assert listing.status_code == 200
-            assert [k["name"] for k in listing.json()] == ["automation"]
+            listing_body = json_list(listing)
+            assert [as_obj(k)["name"] for k in listing_body] == ["automation"]
             # the raw key is never returned after creation (FR-A5)
-            assert "key" not in listing.json()[0]
+            assert "key" not in as_obj(listing_body[0])
 
         # a fresh, cookie-less client authenticates with the header alone;
         # API-key requests bypass CSRF (no cookies involved)
@@ -139,19 +143,21 @@ class TestApiKeys:
     def test_deleted_key_stops_working(self, app: Litestar) -> None:
         with TestClient(app=app) as client:
             complete_setup(client)
-            created = client.post(
-                "/api/v1/auth/api-keys",
-                json={"name": "to-delete"},
-                headers=csrf_headers(client),
-            ).json()
+            created = json_obj(
+                client.post(
+                    "/api/v1/auth/api-keys",
+                    json={"name": "to-delete"},
+                    headers=csrf_headers(client),
+                )
+            )
+            raw_key = created["key"]
+            assert isinstance(raw_key, str)
             deleted = client.delete(
                 f"/api/v1/auth/api-keys/{created['id']}", headers=csrf_headers(client)
             )
             assert deleted.status_code == 204
         with TestClient(app=app) as headless:
-            response = headless.get(
-                "/api/v1/auth/me", headers={"X-API-KEY": created["key"]}
-            )
+            response = headless.get("/api/v1/auth/me", headers={"X-API-KEY": raw_key})
             assert response.status_code == 401
 
 
@@ -187,7 +193,7 @@ class TestForwardAuth:
             headers=csrf_headers(client),
         )
         assert response.status_code == 422
-        assert response.json()["code"] == "validation-failed"
+        assert json_obj(response)["code"] == "validation-failed"
 
     def test_spoofed_header_from_untrusted_client_rejected(
         self, tmp_path: Path
@@ -210,17 +216,20 @@ class TestForwardAuth:
         with TestClient(app=app) as client:
             complete_setup(client)
             self._enable_forward_auth(client)
-        monkeypatch.setattr(
-            AuthRuntime, "client_is_trusted_proxy", lambda self, host: True
-        )
+
+        def _always_trusted(_self: AuthRuntime, _host: str | None) -> bool:
+            return True
+
+        monkeypatch.setattr(AuthRuntime, "client_is_trusted_proxy", _always_trusted)
         with TestClient(app=app) as proxied:
             response = proxied.get(
                 "/api/v1/auth/me",
                 headers={"Remote-User": "eve", "Remote-Email": "eve@example.com"},
             )
             assert response.status_code == 200
-            assert response.json()["username"] == "eve"
-            assert response.json()["email"] == "eve@example.com"
+            body = json_obj(response)
+            assert body["username"] == "eve"
+            assert body["email"] == "eve@example.com"
 
     def test_trusted_check_logic(self) -> None:
         from perevoditarr.core.db import build_alchemy_config

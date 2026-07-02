@@ -7,11 +7,12 @@ TLS, resolved via discovery.
 """
 
 import secrets
+from typing import cast
 from urllib.parse import urlencode
 
 import msgspec
-from authlib.oauth2.rfc7636 import (  # pyright: ignore[reportMissingTypeStubs]
-    create_s256_code_challenge,
+from authlib.oauth2.rfc7636 import (
+    create_s256_code_challenge,  # pyright: ignore[reportUnknownVariableType]  # authlib ships no type information
 )
 from litestar.exceptions import NotAuthorizedException
 
@@ -76,7 +77,9 @@ class OidcFlow:
         discovery = await self.discovery()
         state = secrets.token_urlsafe(32)
         verifier = secrets.token_urlsafe(48)
-        challenge: str = create_s256_code_challenge(verifier)  # pyright: ignore[reportUnknownVariableType]
+        # authlib's PKCE helper is untyped (returns Unknown); it already yields
+        # a str, so the cast is a no-op that just restores the static type.
+        challenge = cast("str", create_s256_code_challenge(verifier))
         params = urlencode(
             {
                 "response_type": "code",

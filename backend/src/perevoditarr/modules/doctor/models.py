@@ -11,7 +11,7 @@ from perevoditarr.core.db import UUIDv7AuditBase
 
 
 class DoctorRun(UUIDv7AuditBase):
-    __tablename__ = "doctor_run"
+    __tablename__: str | None = "doctor_run"
 
     trigger: Mapped[str] = mapped_column(String(16))  # manual | scheduled | contextual
     status: Mapped[str] = mapped_column(String(16))  # running | completed | failed
@@ -26,8 +26,8 @@ class DoctorRun(UUIDv7AuditBase):
 
 
 class DoctorFinding(UUIDv7AuditBase):
-    __tablename__ = "doctor_finding"
-    __table_args__ = (Index("ix_doctor_finding_check", "check_id"),)
+    __tablename__: str | None = "doctor_finding"
+    __table_args__: tuple[Index, ...] = (Index("ix_doctor_finding_check", "check_id"),)
 
     run_id: Mapped[UUID] = mapped_column(
         ForeignKey("doctor_run.id", ondelete="CASCADE"), index=True

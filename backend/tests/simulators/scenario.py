@@ -28,13 +28,13 @@ def asgi_client(app: object, base_url: str = "http://sim.test") -> httpx.AsyncCl
 
 class Scenario:
     def __init__(self) -> None:
-        self.clock = SimClock()
-        self.lingarr = LingarrSimulator(now=self.clock.now)
-        self.bazarr = BazarrSimulator(now=self.clock.now)
+        self.clock: SimClock = SimClock()
+        self.lingarr: LingarrSimulator = LingarrSimulator(now=self.clock.now)
+        self.bazarr: BazarrSimulator = BazarrSimulator(now=self.clock.now)
         self._lingarr_http: httpx.AsyncClient | None = None
-        self._next_series_id = 0
-        self._next_episode_id = 0
-        self._next_movie_id = 0
+        self._next_series_id: int = 0
+        self._next_episode_id: int = 0
+        self._next_movie_id: int = 0
 
     # ------------------------------------------------------------- seeding
 

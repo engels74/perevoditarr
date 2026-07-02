@@ -25,7 +25,7 @@ from perevoditarr.modules.mirror.schemas import (
     SyncRunRead,
 )
 from perevoditarr.modules.mirror.service import MirrorService
-from perevoditarr.modules.mirror.sync import MirrorSyncService
+from perevoditarr.modules.mirror.sync import MirrorSyncService, WantedSyncCompleted
 
 type _Limit = Annotated[int, Parameter(ge=1, le=500)]
 type _Offset = Annotated[int, Parameter(ge=0)]
@@ -54,12 +54,14 @@ async def provide_mirror_sync_service(
     auth_runtime: AuthRuntime,
     gateway: InstanceGateway,
     sse_bus: SseBus,
+    wanted_sync_hook: WantedSyncCompleted | None = None,
 ) -> MirrorSyncService:
     return MirrorSyncService(
         db_session,
         InstancesService(db_session, auth_runtime.secret_box),
         gateway,
         sse_bus,
+        wanted_sync_hook,
     )
 
 

@@ -244,42 +244,42 @@ These are distilled from the rules files and PRD §2/§6. Violations are review 
 ## Phase 2 — M1 Planner (dry-run)
 
 ### P2-T1 · Policy module (FR-P1–P5, §8)
-- [ ] Models: `preset`, `translation_profile`, `profile_assignment` (instance/library/series/movie scopes), `exclusion`, `override`; seed migrations for the four shipped presets (**Observe** default-active on install).
-- [ ] **Cascade resolver**: pure, well-tested function `(item, layers) -> EffectivePolicy` returning every effective value **with provenance** (layer + source id) — the single source of truth reused by discovery, dispatch, UI, and doctor.
-- [ ] Profile semantics: target languages, ordered source preferences, HI/forced source+target rules, grace periods (movie/show), skip conditions (embedded-track option, unmonitored, exclusions/tags).
-- [ ] Validation hooks: targets vs. Bazarr language profiles; pairs vs. Lingarr `source_languages`/`target_languages`; §6.3 code-conversion cases (`zh/zt/pb`) — wired into doctor (FR-DR4/DR6) and inline into profile-editor API responses.
-- [ ] Preset fork/duplicate; JSON export/import with schema-versioned msgspec struct + validation (FR-U6/§8.3).
-- [ ] Property-style tests on the resolver (override wins, provenance correctness, layer removal fallback).
+- [x] Models: `preset`, `translation_profile`, `profile_assignment` (instance/library/series/movie scopes), `exclusion`, `override`; seed migrations for the four shipped presets (**Observe** default-active on install).
+- [x] **Cascade resolver**: pure, well-tested function `(item, layers) -> EffectivePolicy` returning every effective value **with provenance** (layer + source id) — the single source of truth reused by discovery, dispatch, UI, and doctor.
+- [x] Profile semantics: target languages, ordered source preferences, HI/forced source+target rules, grace periods (movie/show), skip conditions (embedded-track option, unmonitored, exclusions/tags).
+- [x] Validation hooks: targets vs. Bazarr language profiles; pairs vs. Lingarr `source_languages`/`target_languages`; §6.3 code-conversion cases (`zh/zt/pb`) — wired into doctor (FR-DR4/DR6) and inline into profile-editor API responses.
+- [x] Preset fork/duplicate; JSON export/import with schema-versioned msgspec struct + validation (FR-U6/§8.3).
+- [x] Property-style tests on the resolver (override wins, provenance correctness, layer removal fallback).
 
 ### P2-T2 · Intent ledger (FR-R1, FR-V1–V3 groundwork)
-- [ ] Models: `intent` (natural key unique: instance, media ref, target lang, forced, hi; state; lease; priority; decision-trace ref), `intent_event` (append-only; actor, transition, reason, evidence snapshot).
-- [ ] State machine implementation as an explicit transition table (`discovered → eligible → dispatched → converged | superseded | failed → retry-eligible | quarantined`); illegal transitions raise; every transition writes an `intent_event`.
-- [ ] **Decision trace** structure (msgspec tagged union of rule-step records) rendered human-readable ("profile *Anime* → missing `da` → source `en` over `ja` by preference → grace passed → priority 3").
-- [ ] Repository queries tuned for: backlog by priority, in-flight by instance, per-series in-flight lookup (invariant support), history filters.
+- [x] Models: `intent` (natural key unique: instance, media ref, target lang, forced, hi; state; lease; priority; decision-trace ref), `intent_event` (append-only; actor, transition, reason, evidence snapshot).
+- [x] State machine implementation as an explicit transition table (`discovered → eligible → dispatched → converged | superseded | failed → retry-eligible | quarantined`); illegal transitions raise; every transition writes an `intent_event`.
+- [x] **Decision trace** structure (msgspec tagged union of rule-step records) rendered human-readable ("profile *Anime* → missing `da` → source `en` over `ja` by preference → grace passed → priority 3").
+- [x] Repository queries tuned for: backlog by priority, in-flight by instance, per-series in-flight lookup (invariant support), history filters.
 
 ### P2-T3 · Discovery engine (FR-P1)
-- [ ] Wanted-mirror → candidate generation joined with cascade resolver; source-subtitle election per preference order; grace-period and skip-condition evaluation.
-- [ ] Idempotent upsert into ledger keyed on natural identity (re-discovery updates, never duplicates); disappearance from wanted ⇒ candidate withdrawal/supersede path.
-- [ ] Scheduled + on-sync-completion triggers; SSE `intents.discovered` events.
-- [ ] Tests: language matching incl. code2 edge cases; HI/forced permutations; grace boundaries; exclusion layers.
+- [x] Wanted-mirror → candidate generation joined with cascade resolver; source-subtitle election per preference order; grace-period and skip-condition evaluation.
+- [x] Idempotent upsert into ledger keyed on natural identity (re-discovery updates, never duplicates); disappearance from wanted ⇒ candidate withdrawal/supersede path.
+- [x] Scheduled + on-sync-completion triggers; SSE `intents.discovered` events.
+- [x] Tests: language matching incl. code2 edge cases; HI/forced permutations; grace boundaries; exclusion layers.
 
 ### P2-T4 · Reconciler in Observe mode (FR-R2–R4 foundations)
-- [ ] Evidence collectors: Bazarr metadata (subtitle presence), Bazarr history (action = 6 within window), Lingarr request lookup at §6.5 granularity — each a typed, independently testable component.
-- [ ] Reconciliation loop (scheduled + event-nudged): advances `discovered/eligible` bookkeeping and detects `superseded` (subtitle appeared by other means) — **no dispatch exists yet**, so Observe mode is total.
-- [ ] Startup re-observation routine (crash-safety skeleton, exercised fully in Phase 3).
+- [x] Evidence collectors: Bazarr metadata (subtitle presence), Bazarr history (action = 6 within window), Lingarr request lookup at §6.5 granularity — each a typed, independently testable component.
+- [x] Reconciliation loop (scheduled + event-nudged): advances `discovered/eligible` bookkeeping and detects `superseded` (subtitle appeared by other means) — **no dispatch exists yet**, so Observe mode is total.
+- [x] Startup re-observation routine (crash-safety skeleton, exercised fully in Phase 3).
 
 ### P2-T5 · Prioritization & plan preview (FR-Q4, FR-U3)
-- [ ] Priority scorer: recency (added/aired), monitored, continuing vs. ended, movie/episode weights — configurable per profile; manual bump field.
-- [ ] Volume/budget estimator: characters/lines per intent from rolling actuals (Lingarr statistics + own history once available) with runtime-based heuristic fallback; conservative (high) estimates per PRD risk table.
-- [ ] Plan-preview API: "next N under current rails/caps, with reasons and cost estimate" — pure function over ledger + policy + rail config (rails simulated in Observe).
-- [ ] Determinism tests: same inputs ⇒ same plan; scorer weight changes reflected with provenance.
+- [x] Priority scorer: recency (added/aired), monitored, continuing vs. ended, movie/episode weights — configurable per profile; manual bump field.
+- [x] Volume/budget estimator: characters/lines per intent from rolling actuals (Lingarr statistics + own history once available) with runtime-based heuristic fallback; conservative (high) estimates per PRD risk table.
+- [x] Plan-preview API: "next N under current rails/caps, with reasons and cost estimate" — pure function over ledger + policy + rail config (rails simulated in Observe).
+- [x] Determinism tests: same inputs ⇒ same plan; scorer weight changes reflected with provenance.
 
 ### P2-T6 · Frontend M1
-- [ ] **Profiles & presets UI**: cascade editor with provenance chips ("inherited from *Balanced* — override?"), per-layer override toggles, validation feedback inline; preset fork/import/export.
-- [ ] **Plan preview** (primary Observe surface): what-would-run list with decision traces, estimated volume/budget, grouping by instance/profile.
-- [ ] **History/audit UI** (FR-V2 read scope): filterable intent history with trace drill-in.
-- [ ] **Library browser additions**: per-item effective-policy inspector, exclusion & profile-assignment actions, "why is this not planned?" explainer (resolver-driven).
-- [ ] Superforms (or equivalent runes-native form handling per rules doc) for the profile editor's nested forms; `bun:test` coverage on cascade-display logic.
+- [x] **Profiles & presets UI**: cascade editor with provenance chips ("inherited from *Balanced* — override?"), per-layer override toggles, validation feedback inline; preset fork/import/export.
+- [x] **Plan preview** (primary Observe surface): what-would-run list with decision traces, estimated volume/budget, grouping by instance/profile.
+- [x] **History/audit UI** (FR-V2 read scope): filterable intent history with trace drill-in.
+- [x] **Library browser additions**: per-item effective-policy inspector, exclusion & profile-assignment actions, "why is this not planned?" explainer (resolver-driven).
+- [x] Superforms (or equivalent runes-native form handling per rules doc) for the profile editor's nested forms; `bun:test` coverage on cascade-display logic.
 
 **Phase 2 / M1 exit (PRD):** plan preview is accurate and fully explainable against a real (or simulator-seeded 100k) library; presets/profiles round-trip via export/import; still zero dispatches.
 

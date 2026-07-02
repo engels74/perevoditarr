@@ -303,6 +303,12 @@ class BazarrSimulator:
         ) -> Response[dict[str, object]]:
             if (denied := guard(request)) is not None:
                 return denied  # pyright: ignore[reportReturnType]
+            wanted_movies = {
+                int(v)
+                for v in cast(
+                    "list[str]", request.query_params.getall("radarrid[]", [])
+                )
+            }
             rows: list[dict[str, object]] = [
                 {
                     "radarrId": m.radarr_id,
@@ -318,6 +324,7 @@ class BazarrSimulator:
                     "tags": [],
                 }
                 for m in sorted(sim.movies.values(), key=lambda m: m.radarr_id)
+                if not wanted_movies or m.radarr_id in wanted_movies
             ]
             return Response(_paged(rows, start, length))
 

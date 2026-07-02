@@ -10,6 +10,7 @@ from collections.abc import AsyncGenerator, Callable
 from contextlib import asynccontextmanager, suppress
 from importlib.metadata import version
 from pathlib import Path
+from uuid import UUID
 
 import msgspec
 from litestar import Litestar, MediaType, Request, Response, Router, get
@@ -31,6 +32,7 @@ from litestar_granian import GranianPlugin
 from perevoditarr.core.db import build_alchemy_config, build_sqlalchemy_plugin
 from perevoditarr.core.errors import PerevoditarrError, domain_exception_handler
 from perevoditarr.core.http import HttpClientRegistry
+from perevoditarr.core.locks import InstanceLockRegistry
 from perevoditarr.core.logging import (
     build_structlog_plugin,
     get_logger,
@@ -50,6 +52,10 @@ from perevoditarr.modules.auth import (
     provide_provider_service,
     setup_gate_middleware,
 )
+from perevoditarr.modules.dispatch import (
+    DispatchController,
+    provide_plan_preview_service,
+)
 from perevoditarr.modules.doctor import (
     DoctorController,
     DoctorService,
@@ -62,13 +68,24 @@ from perevoditarr.modules.instances import (
     provide_gateway,
     provide_instances_service,
 )
+from perevoditarr.modules.intents import (
+    IntentsController,
+    discovery_loop,
+    provide_discovery_service,
+    provide_intents_service,
+    reconcile_loop,
+    run_discovery,
+    run_reconciliation,
+)
 from perevoditarr.modules.mirror import (
     MirrorController,
+    WantedSyncCompleted,
     library_sync_loop,
     provide_mirror_service,
     provide_mirror_sync_service,
     wanted_sync_loop,
 )
+from perevoditarr.modules.policy import PolicyController, provide_policy_service
 
 SPA_DIR_ENV = "PEREVODITARR_SPA_DIR"
 
@@ -190,10 +207,58 @@ def create_app(settings: AppSettings | None = None) -> Litestar:
         ],
     )
 
+    # One shared registry: the periodic loops and the wanted-sync hook must
+    # never run discovery/reconciliation for the same instance concurrently
+    # (the ledger upsert is SELECT-then-INSERT; interleaved passes race it).
+    instance_locks = InstanceLockRegistry()
+
+    def _make_wanted_sync_hook(gateway: InstanceGateway) -> WantedSyncCompleted:
+        # Wanted-sync completion ⇒ discovery, then reconciliation, for that
+        # instance (P2-T3/P2-T4: the event nudge). Wired here so the mirror
+        # module never imports intents; this is an explicit in-process seam,
+        # not the SSE bus (§7.3: SSE is UI-only).
+        async def hook(instance_id: UUID) -> None:
+            await run_discovery(
+                alchemy_config,
+                gateway,
+                secret_box,
+                sse_bus,
+                instance_id=instance_id,
+                locks=instance_locks,
+            )
+            await run_reconciliation(
+                alchemy_config,
+                gateway,
+                secret_box,
+                sse_bus,
+                instance_id=instance_id,
+                locks=instance_locks,
+            )
+
+        return hook
+
+    def provide_wanted_sync_hook(state: State) -> WantedSyncCompleted:
+        return _make_wanted_sync_hook(provide_gateway(state))
+
     @asynccontextmanager
     async def _background_loops_lifespan(app: Litestar) -> AsyncGenerator[None]:
         tasks: list[asyncio.Task[None]] = []
         gateway = provide_gateway(app.state)
+        # Startup re-observation (FR-R4): one full reconciliation pass before
+        # the periodic loops take over — crash safety is re-observation, never
+        # volatile state. Unreachable instances log and skip inside; anything
+        # else must still never block boot.
+        try:
+            await run_reconciliation(
+                alchemy_config,
+                gateway,
+                secret_box,
+                sse_bus,
+                actor="startup",
+                locks=instance_locks,
+            )
+        except Exception as error:
+            get_logger().warning("startup re-observation failed", error=str(error))
         if resolved.health_interval_seconds > 0:
             tasks.append(
                 asyncio.create_task(
@@ -227,6 +292,33 @@ def create_app(settings: AppSettings | None = None) -> Litestar:
                         secret_box,
                         sse_bus,
                         resolved.wanted_interval_seconds,
+                        _make_wanted_sync_hook(gateway),
+                    )
+                )
+            )
+        if resolved.discovery_interval_seconds > 0:
+            tasks.append(
+                asyncio.create_task(
+                    discovery_loop(
+                        alchemy_config,
+                        gateway,
+                        secret_box,
+                        sse_bus,
+                        resolved.discovery_interval_seconds,
+                        locks=instance_locks,
+                    )
+                )
+            )
+        if resolved.reconcile_interval_seconds > 0:
+            tasks.append(
+                asyncio.create_task(
+                    reconcile_loop(
+                        alchemy_config,
+                        gateway,
+                        secret_box,
+                        sse_bus,
+                        resolved.reconcile_interval_seconds,
+                        locks=instance_locks,
                     )
                 )
             )
@@ -284,6 +376,9 @@ def create_app(settings: AppSettings | None = None) -> Litestar:
             InstancesController,
             MirrorController,
             DoctorController,
+            PolicyController,
+            IntentsController,
+            DispatchController,
         ],
     )
     route_handlers: list[Router] = [api_v1]
@@ -303,6 +398,11 @@ def create_app(settings: AppSettings | None = None) -> Litestar:
 
     return Litestar(
         route_handlers=route_handlers,
+        # No endpoint accepts uploads; the largest legitimate body is a
+        # policy-export JSON. A global cap keeps oversized payloads from
+        # being buffered and decoded (defense in depth on top of the
+        # msgspec max_length constraints).
+        request_max_body_size=10 * 1024 * 1024,
         plugins=[
             GranianPlugin(),
             build_sqlalchemy_plugin(alchemy_config),
@@ -333,6 +433,11 @@ def create_app(settings: AppSettings | None = None) -> Litestar:
             "mirror_service": Provide(provide_mirror_service),
             "mirror_sync_service": Provide(provide_mirror_sync_service),
             "doctor_service": Provide(provide_doctor_service),
+            "policy_service": Provide(provide_policy_service),
+            "intents_service": Provide(provide_intents_service),
+            "discovery_service": Provide(provide_discovery_service),
+            "plan_preview_service": Provide(provide_plan_preview_service),
+            "wanted_sync_hook": Provide(provide_wanted_sync_hook, sync_to_thread=False),
         },
         openapi_config=OpenAPIConfig(
             title="Perevoditarr API",

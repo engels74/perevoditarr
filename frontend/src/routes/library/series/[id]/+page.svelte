@@ -1,7 +1,9 @@
 <script lang="ts">
 import { page } from '$app/state';
-import { listSeriesEpisodes } from '$lib/api/endpoints';
+import { type ExplainQuery, listSeriesEpisodes } from '$lib/api/endpoints';
 import type { EpisodeRead } from '$lib/api/types';
+import ExplainDialog from '$lib/components/explain-dialog.svelte';
+import ItemPolicyActions from '$lib/components/item-policy-actions.svelte';
 import { Badge } from '$lib/components/ui/badge';
 import { Button } from '$lib/components/ui/button';
 import * as Table from '$lib/components/ui/table';
@@ -10,6 +12,12 @@ import { createPagedList } from '$lib/state/library.svelte';
 
 const seriesId = $derived(page.params.id ?? '');
 const title = $derived(page.url.searchParams.get('title') ?? 'Series');
+// Item context arrives with the navigation from the library list; a deep link
+// without it still renders, only the policy actions/explainer hide.
+const instanceId = $derived(page.url.searchParams.get('instanceId') ?? '');
+const sonarrSeriesId = $derived(
+	Number.parseInt(page.url.searchParams.get('sonarrSeriesId') ?? '', 10)
+);
 
 const episodes = createPagedList<EpisodeRead>((query) =>
 	listSeriesEpisodes(seriesId, { limit: query.limit, offset: query.offset })
@@ -26,12 +34,42 @@ function episodeCode(row: EpisodeRead): string {
 	const episode = String(row.episode).padStart(2, '0');
 	return `S${season}E${episode}`;
 }
+
+let explainQuery = $state<ExplainQuery | null>(null);
+let explainTitle = $state('');
+
+function openExplain(
+	row: EpisodeRead,
+	wanted: { language: string; forced: boolean; hi: boolean }
+): void {
+	if (instanceId === '') {
+		return;
+	}
+	explainTitle = `${title} ${episodeCode(row)} — wants ${wantedLabel(wanted)}`;
+	explainQuery = {
+		instanceId,
+		mediaType: 'episode',
+		externalMediaId: row.sonarrEpisodeId,
+		language: wanted.language,
+		forced: wanted.forced,
+		hi: wanted.hi
+	};
+}
 </script>
 
 <div class="space-y-4">
 	<div class="flex items-center gap-3">
 		<Button href="/library" variant="ghost" size="sm">← Library</Button>
 		<h1 class="text-2xl font-semibold">{title}</h1>
+		{#if instanceId !== '' && Number.isFinite(sonarrSeriesId)}
+			<ItemPolicyActions
+				{instanceId}
+				mediaType="series"
+				externalId={sonarrSeriesId}
+				{title}
+				monitored={true}
+			/>
+		{/if}
 	</div>
 
 	{#if episodes.error}
@@ -70,7 +108,18 @@ function episodeCode(row: EpisodeRead): string {
 					<Table.Cell>
 						<div class="flex flex-wrap gap-1">
 							{#each row.wanted as wanted (wantedLabel(wanted))}
-								<Badge variant="outline">{wantedLabel(wanted)}</Badge>
+								{#if instanceId !== ''}
+									<button
+										type="button"
+										class="cursor-pointer"
+										title="Why is this not planned?"
+										onclick={() => openExplain(row, wanted)}
+									>
+										<Badge variant="outline">{wantedLabel(wanted)}</Badge>
+									</button>
+								{:else}
+									<Badge variant="outline">{wantedLabel(wanted)}</Badge>
+								{/if}
 							{:else}
 								<span class="text-muted-foreground">—</span>
 							{/each}
@@ -113,3 +162,12 @@ function episodeCode(row: EpisodeRead): string {
 		</div>
 	</div>
 </div>
+
+{#if explainQuery}
+	<ExplainDialog
+		open={explainQuery !== null}
+		title={explainTitle}
+		query={explainQuery}
+		onClose={() => (explainQuery = null)}
+	/>
+{/if}

@@ -1,6 +1,7 @@
 <script lang="ts">
 import { getLingarrDiscovery, testConnection } from '$lib/api/endpoints';
 import type { ConnectionTestResult, LingarrDiscoveryResult } from '$lib/api/types';
+import SettingsNav from '$lib/components/settings-nav.svelte';
 import { Badge } from '$lib/components/ui/badge';
 import { Button } from '$lib/components/ui/button';
 import * as Card from '$lib/components/ui/card';
@@ -159,7 +160,8 @@ async function confirmDiscovery(): Promise<void> {
 </script>
 
 <div class="space-y-6">
-	<h1 class="text-2xl font-semibold">Instances</h1>
+	<h1 class="text-2xl font-semibold">Settings</h1>
+	<SettingsNav />
 
 	{#if instances.error}
 		<p class="text-sm text-destructive">{instances.error}</p>

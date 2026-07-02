@@ -12,13 +12,52 @@ from perevoditarr.modules.doctor.framework import (
     register,
     registered_checks,
 )
+from perevoditarr.modules.policy import (
+    CODE2_CONVERSIONS,
+    LanguageInventory,
+    ProfilePolicySummary,
+    parse_lingarr_language_setting,
+    validate_profile_values,
+)
 
 # Phase 3 introduces the configurable dispatch window; until then the doctor
 # reasons about the shipped default (PRD §7.2).
 DEFAULT_DISPATCH_WINDOW = 2
 
-# §6.3: Bazarr converts these before calling Lingarr.
-_CODE_CONVERSIONS = {"zh": "zh-CN", "zt": "zh-TW", "pb": "pt-BR"}
+# §6.3: Bazarr converts these before calling Lingarr (single-sourced in policy).
+_CODE_CONVERSIONS = CODE2_CONVERSIONS
+
+
+def _assigned_profiles(
+    context: DoctorContext, instance: BazarrContext
+) -> list[ProfilePolicySummary]:
+    return [
+        summary
+        for summary in context.translation_profiles
+        if instance.instance_id in summary.instance_ids
+    ]
+
+
+def _instance_inventory(instance: BazarrContext) -> LanguageInventory:
+    """LanguageInventory for one Bazarr+Lingarr pair from doctor context data."""
+    lingarr = instance.lingarr
+    return LanguageInventory(
+        instance_name=instance.name,
+        bazarr_languages=(
+            frozenset(_profile_languages(instance)) if instance.reachable else None
+        ),
+        lingarr_sources=(
+            parse_lingarr_language_setting(lingarr.settings.get("source_languages"))
+            if lingarr is not None and lingarr.reachable
+            else None
+        ),
+        lingarr_targets=(
+            parse_lingarr_language_setting(lingarr.settings.get("target_languages"))
+            if lingarr is not None and lingarr.reachable
+            else None
+        ),
+    )
+
 
 _STALE_MIRROR_AGE = timedelta(hours=24)
 
@@ -268,6 +307,27 @@ class LanguageProfilesCheck:
                     data={"languages": sorted(set(_profile_languages(instance)))},
                 )
             )
+            # P2-T1 wiring: profile targets vs this instance's inventory (FR-P4).
+            inventory = _instance_inventory(instance)
+            for summary in _assigned_profiles(context, instance):
+                for finding in validate_profile_values(summary.values, (inventory,)):
+                    if finding.code != "target-not-wanted":
+                        continue
+                    findings.append(
+                        Finding(
+                            check_id=self.check_id,
+                            severity="warn",
+                            message=(f"Profile '{summary.name}': {finding.message}"),
+                            explanation=(
+                                "Targets outside Bazarr's language profiles are "
+                                "never 'wanted', so this profile target can "
+                                "never be discovered on this instance."
+                            ),
+                            fix_guidance=finding.fix_guidance,
+                            bazarr_instance_id=instance.instance_id,
+                            data={"profileId": str(summary.profile_id)},
+                        )
+                    )
         return findings
 
 
@@ -320,38 +380,66 @@ class LanguageCodeEdgeCasesCheck:
                     if lang in _CODE_CONVERSIONS
                 }
             )
-            if not affected:
-                continue
             lingarr = instance.lingarr
             code_format = (
                 lingarr.settings.get("language_code_format", "") if lingarr else ""
             )
-            conversions = {lang: _CODE_CONVERSIONS[lang] for lang in affected}
-            severity: Severity = "warn" if code_format else "info"
-            findings.append(
-                Finding(
-                    check_id=self.check_id,
-                    severity=severity,
-                    message=(
-                        f"Language-code conversions apply on '{instance.name}': "
-                        + ", ".join(f"{a}→{b}" for a, b in conversions.items())
-                    ),
-                    explanation=(
-                        "Bazarr converts these codes before calling Lingarr "
-                        "(§6.3). If Lingarr's language_code_format disagrees, "
-                        "pairs may not match its configured languages."
-                    ),
-                    fix_guidance=(
-                        "Verify Lingarr's source/target languages include the "
-                        "converted codes; review language_code_format if set."
-                    ),
-                    bazarr_instance_id=instance.instance_id,
-                    data={
-                        "conversions": dict(conversions),
-                        "languageCodeFormat": code_format,
-                    },
+            if affected:
+                conversions = {lang: _CODE_CONVERSIONS[lang] for lang in affected}
+                severity: Severity = "warn" if code_format else "info"
+                findings.append(
+                    Finding(
+                        check_id=self.check_id,
+                        severity=severity,
+                        message=(
+                            f"Language-code conversions apply on '{instance.name}': "
+                            + ", ".join(f"{a}→{b}" for a, b in conversions.items())
+                        ),
+                        explanation=(
+                            "Bazarr converts these codes before calling Lingarr "
+                            "(§6.3). If Lingarr's language_code_format disagrees, "
+                            "pairs may not match its configured languages."
+                        ),
+                        fix_guidance=(
+                            "Verify Lingarr's source/target languages include the "
+                            "converted codes; review language_code_format if set."
+                        ),
+                        bazarr_instance_id=instance.instance_id,
+                        data={
+                            "conversions": dict(conversions),
+                            "languageCodeFormat": code_format,
+                        },
+                    )
                 )
-            )
+            # P2-T1 wiring: profile pairs vs Lingarr's configured languages,
+            # honoring §6.3 conversions (FR-P4).
+            inventory = _instance_inventory(instance)
+            for summary in _assigned_profiles(context, instance):
+                for finding in validate_profile_values(summary.values, (inventory,)):
+                    if finding.code not in (
+                        "target-not-in-lingarr",
+                        "source-not-in-lingarr",
+                    ):
+                        continue
+                    findings.append(
+                        Finding(
+                            check_id=self.check_id,
+                            severity="warn",
+                            message=f"Profile '{summary.name}': {finding.message}",
+                            explanation=(
+                                "Pairs outside Lingarr's configured "
+                                "source/target languages fail at translation "
+                                "time (§6.7 — Lingarr's settings are "
+                                "authoritative)."
+                            ),
+                            fix_guidance=finding.fix_guidance,
+                            bazarr_instance_id=instance.instance_id,
+                            lingarr_instance_id=(
+                                lingarr.instance_id if lingarr else None
+                            ),
+                            data={"profileId": str(summary.profile_id)},
+                        )
+                    )
         return findings
 
 

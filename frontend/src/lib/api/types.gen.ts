@@ -623,6 +623,388 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/policy/presets/{preset_id}/activate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** ActivatePreset */
+        post: operations["activatePreset"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/policy/assignments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** ListAssignments */
+        get: operations["listProfileAssignments"];
+        put?: never;
+        /** CreateAssignment */
+        post: operations["createProfileAssignment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/policy/exclusions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** ListExclusions */
+        get: operations["listExclusions"];
+        put?: never;
+        /** CreateExclusion */
+        post: operations["createExclusion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/policy/presets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** ListPresets */
+        get: operations["listPresets"];
+        put?: never;
+        /** CreatePreset */
+        post: operations["createPreset"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/policy/profiles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** ListProfiles */
+        get: operations["listTranslationProfiles"];
+        put?: never;
+        /** CreateProfile */
+        post: operations["createTranslationProfile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/policy/assignments/{assignment_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** DeleteAssignment */
+        delete: operations["deleteProfileAssignment"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/policy/exclusions/{exclusion_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** DeleteExclusion */
+        delete: operations["deleteExclusion"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/policy/overrides/{override_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** DeleteOverride */
+        delete: operations["deleteOverride"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/policy/presets/{preset_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** DeletePreset */
+        delete: operations["deletePreset"];
+        options?: never;
+        head?: never;
+        /** UpdatePreset */
+        patch: operations["updatePreset"];
+        trace?: never;
+    };
+    "/api/v1/policy/profiles/{profile_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** GetProfile */
+        get: operations["getTranslationProfile"];
+        put?: never;
+        post?: never;
+        /** DeleteProfile */
+        delete: operations["deleteTranslationProfile"];
+        options?: never;
+        head?: never;
+        /** UpdateProfile */
+        patch: operations["updateTranslationProfile"];
+        trace?: never;
+    };
+    "/api/v1/policy/effective": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** EffectivePolicy */
+        get: operations["getEffectivePolicy"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/policy/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** ExportPolicies */
+        get: operations["exportPolicies"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/policy/presets/{preset_id}/fork": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** ForkPreset */
+        post: operations["forkPreset"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/policy/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** ImportPolicies */
+        post: operations["importPolicies"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/policy/overrides": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** ListOverrides */
+        get: operations["listOverrides"];
+        put?: never;
+        /** UpsertOverride */
+        post: operations["upsertOverride"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/policy/profiles/validate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** ValidateProfile */
+        post: operations["validateProfileValues"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/intents/backlog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Backlog */
+        get: operations["listIntentBacklog"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/intents/explain": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Explain */
+        get: operations["explainCandidate"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/intents/{intent_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** GetIntent */
+        get: operations["getIntent"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/intents/in-flight": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** InFlight */
+        get: operations["listIntentsInFlight"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/intents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** ListIntents */
+        get: operations["listIntents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/plan/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Preview */
+        get: operations["getPlanPreview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -739,6 +1121,21 @@ export interface components {
             } | null;
             findings: components["schemas"]["DoctorFindingRead"][];
         };
+        /** EffectivePolicyRead */
+        EffectivePolicyRead: {
+            dryRun: components["schemas"]["ResolvedValueDto_bool_"];
+            targetLanguages: components["schemas"]["ResolvedValueDto_list_str_"];
+            sourcePreferences: components["schemas"]["ResolvedValueDto_list_str_"];
+            allowHiSource: components["schemas"]["ResolvedValueDto_bool_"];
+            allowForcedSource: components["schemas"]["ResolvedValueDto_bool_"];
+            translateHiTargets: components["schemas"]["ResolvedValueDto_bool_"];
+            translateForcedTargets: components["schemas"]["ResolvedValueDto_bool_"];
+            graceHoursEpisodes: components["schemas"]["ResolvedValueDto_int_"];
+            graceHoursMovies: components["schemas"]["ResolvedValueDto_int_"];
+            skipIfEmbeddedTarget: components["schemas"]["ResolvedValueDto_bool_"];
+            skipUnmonitored: components["schemas"]["ResolvedValueDto_bool_"];
+            priorityWeights: components["schemas"]["ResolvedValueDto_perevoditarr.modules.policy.schemas.PriorityWeightsDto_"];
+        };
         /** EpisodeRead */
         EpisodeRead: {
             /** Format: uuid */
@@ -752,6 +1149,37 @@ export interface components {
             airDate: string | null;
             subtitles: components["schemas"]["SubtitleRead"][];
             wanted: components["schemas"]["WantedRead"][];
+        };
+        /** ExclusionCreate */
+        ExclusionCreate: {
+            /** Format: uuid */
+            bazarrInstanceId: string;
+            /** @enum {string} */
+            kind: "series" | "movie" | "tag" | "language_pair";
+            ruleKey: string;
+            note?: string | null;
+        };
+        /** ExclusionRead */
+        ExclusionRead: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            bazarrInstanceId: string;
+            /** @enum {string} */
+            kind: "series" | "movie" | "tag" | "language_pair";
+            ruleKey: string;
+            note: string | null;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        /** ExplainRead */
+        ExplainRead: {
+            outcome: string;
+            reason: string | null;
+            detail: string | null;
+            sourceLanguage: string | null;
+            traceRendered: string;
+            traceSteps: string[];
         };
         /** ForwardAuthSettingsRead */
         ForwardAuthSettingsRead: {
@@ -783,10 +1211,23 @@ export interface components {
         HealthStatus: {
             status: string;
         };
+        /** HeldVerdictDto */
+        HeldVerdictDto: {
+            rail: string;
+            detail: string;
+            /** @constant */
+            type: "held";
+        };
         /** HelloMessage */
         HelloMessage: {
             appName: string;
             message: string;
+        };
+        /** IncludedVerdictDto */
+        IncludedVerdictDto: {
+            position: number;
+            /** @constant */
+            type: "included";
         };
         /** InstanceHealth */
         InstanceHealth: {
@@ -800,6 +1241,52 @@ export interface components {
             queueDepth?: number | null;
             version?: string | null;
             detail?: string | null;
+        };
+        /** IntentDetail */
+        IntentDetail: {
+            intent: components["schemas"]["IntentRead"];
+            traceSteps: string[];
+            events: components["schemas"]["IntentEventRead"][];
+        };
+        /** IntentEventRead */
+        IntentEventRead: {
+            /** Format: uuid */
+            id: string;
+            actor: string;
+            fromState: string | null;
+            toState: string;
+            reason: string;
+            evidence: {
+                [key: string]: unknown;
+            } | null;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        /** IntentRead */
+        IntentRead: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            bazarrInstanceId: string;
+            mediaType: string;
+            externalMediaId: number;
+            sonarrSeriesId: number | null;
+            season: number | null;
+            episodeNumber: number | null;
+            displayTitle: string;
+            sourceLanguage: string;
+            targetLanguage: string;
+            forced: boolean;
+            hi: boolean;
+            state: string;
+            leaseExpiresAt: string | null;
+            priority: number;
+            bumpedAt: string | null;
+            traceRendered: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
         };
         /** LingarrDiscoveryConfirm */
         LingarrDiscoveryConfirm: {
@@ -891,6 +1378,37 @@ export interface components {
             /** @default true */
             autoCreateUsers: boolean;
         };
+        /** OverrideRead */
+        OverrideRead: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            bazarrInstanceId: string;
+            /** @enum {string} */
+            mediaType: "series" | "movie";
+            mediaKey: string;
+            values: components["schemas"]["PolicyValuesDto"];
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        /** OverrideUpsert */
+        OverrideUpsert: {
+            /** Format: uuid */
+            bazarrInstanceId: string;
+            /** @enum {string} */
+            mediaType: "series" | "movie";
+            mediaKey: string;
+            values: components["schemas"]["PolicyValuesRequest"];
+        };
+        /** Page[IntentRead] */
+        "Page_perevoditarr.modules.intents.schemas.IntentRead_": {
+            items: components["schemas"]["IntentRead"][];
+            total: number;
+            limit: number;
+            offset: number;
+        };
         /** Page[EpisodeRead] */
         "Page_perevoditarr.modules.mirror.schemas.EpisodeRead_": {
             items: components["schemas"]["EpisodeRead"][];
@@ -918,6 +1436,284 @@ export interface components {
             total: number;
             limit: number;
             offset: number;
+        };
+        /** PlanGroupDto */
+        PlanGroupDto: {
+            /** Format: uuid */
+            bazarrInstanceId: string;
+            instanceName: string;
+            included: number;
+            held: number;
+            estimatedCharacters: number;
+        };
+        /** PlanItemDto */
+        PlanItemDto: {
+            /** Format: uuid */
+            intentId: string;
+            /** Format: uuid */
+            bazarrInstanceId: string;
+            /** @enum {string} */
+            mediaType: "episode" | "movie";
+            externalMediaId: number;
+            sonarrSeriesId: number | null;
+            displayTitle: string;
+            season: number | null;
+            episodeNumber: number | null;
+            sourceLanguage: string;
+            targetLanguage: string;
+            forced: boolean;
+            hi: boolean;
+            priority: number;
+            bumped: boolean;
+            profileName: string | null;
+            scoreComponents: {
+                [key: string]: number;
+            } | null;
+            estimate: components["schemas"]["VolumeEstimateDto"];
+            verdict: components["schemas"]["IncludedVerdictDto"] | components["schemas"]["HeldVerdictDto"];
+        };
+        /** PlanPreviewResponse */
+        PlanPreviewResponse: {
+            /** Format: date-time */
+            generatedAt: string;
+            dryRun: boolean;
+            activePreset: string | null;
+            rails: components["schemas"]["RailSettingsDto"];
+            limit: number;
+            candidateWindow: number;
+            items: components["schemas"]["PlanItemDto"][];
+            totals: components["schemas"]["PlanTotalsDto"];
+            groups: components["schemas"]["PlanGroupDto"][];
+        };
+        /** PlanTotalsDto */
+        PlanTotalsDto: {
+            evaluated: number;
+            included: number;
+            held: number;
+            estimatedLines: number;
+            estimatedCharacters: number;
+        };
+        /** PolicyExport */
+        PolicyExport: {
+            schemaVersion: number;
+            presets: components["schemas"]["PresetExport"][];
+            profiles: components["schemas"]["ProfileExport"][];
+        };
+        /** PolicyFindingRead */
+        PolicyFindingRead: {
+            code: string;
+            /** @enum {string} */
+            severity: "info" | "warn" | "critical";
+            message: string;
+            fixGuidance: string;
+            instanceName?: string | null;
+        };
+        /** PolicyImportRequest */
+        PolicyImportRequest: {
+            schemaVersion: number;
+            presets?: components["schemas"]["PresetImport"][];
+            profiles?: components["schemas"]["ProfileImport"][];
+        };
+        /** PolicyImportResult */
+        PolicyImportResult: {
+            createdPresets: string[];
+            createdProfiles: string[];
+            skipped: string[];
+        };
+        /** PolicyValuesDto */
+        PolicyValuesDto: {
+            dryRun?: boolean | null;
+            targetLanguages?: string[] | null;
+            sourcePreferences?: string[] | null;
+            allowHiSource?: boolean | null;
+            allowForcedSource?: boolean | null;
+            translateHiTargets?: boolean | null;
+            translateForcedTargets?: boolean | null;
+            graceHoursEpisodes?: number | null;
+            graceHoursMovies?: number | null;
+            skipIfEmbeddedTarget?: boolean | null;
+            skipUnmonitored?: boolean | null;
+            priorityWeights?: components["schemas"]["PriorityWeightsDto"] | null;
+        };
+        /** PolicyValuesRequest */
+        PolicyValuesRequest: {
+            dryRun?: boolean | null;
+            targetLanguages?: string[] | null;
+            sourcePreferences?: string[] | null;
+            allowHiSource?: boolean | null;
+            allowForcedSource?: boolean | null;
+            translateHiTargets?: boolean | null;
+            translateForcedTargets?: boolean | null;
+            graceHoursEpisodes?: number | null;
+            graceHoursMovies?: number | null;
+            skipIfEmbeddedTarget?: boolean | null;
+            skipUnmonitored?: boolean | null;
+            priorityWeights?: components["schemas"]["PriorityWeightsRequest"] | null;
+        };
+        /** PresetCreate */
+        PresetCreate: {
+            name: string;
+            description?: string | null;
+            values?: components["schemas"]["PolicyValuesRequest"] | null;
+            rails?: components["schemas"]["RailSettingsDto"] | null;
+        };
+        /** PresetExport */
+        PresetExport: {
+            name: string;
+            description?: string | null;
+            values?: components["schemas"]["PolicyValuesDto"] | null;
+            rails?: components["schemas"]["RailSettingsDto"] | null;
+        };
+        /** PresetFork */
+        PresetFork: {
+            name: string;
+        };
+        /** PresetImport */
+        PresetImport: {
+            name: string;
+            description?: string | null;
+            values?: components["schemas"]["PolicyValuesRequest"] | null;
+            rails?: components["schemas"]["RailSettingsDto"] | null;
+        };
+        /** PresetRead */
+        PresetRead: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            description: string | null;
+            builtIn: boolean;
+            active: boolean;
+            values: components["schemas"]["PolicyValuesDto"];
+            rails: components["schemas"]["RailSettingsDto"];
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        /** PresetUpdate */
+        PresetUpdate: {
+            name?: string;
+            description?: string | null;
+            values?: components["schemas"]["PolicyValuesRequest"];
+            rails?: components["schemas"]["RailSettingsDto"];
+        };
+        /** PriorityWeightsDto */
+        PriorityWeightsDto: {
+            /** @default 10 */
+            episodeBase: number;
+            /** @default 10 */
+            movieBase: number;
+            /** @default 20 */
+            monitoredBonus: number;
+            /** @default 15 */
+            continuingBonus: number;
+            /** @default 40 */
+            recencyMax: number;
+            /** @default 168 */
+            recencyHalfLifeHours: number;
+        };
+        /** PriorityWeightsRequest */
+        PriorityWeightsRequest: {
+            /** @default 10 */
+            episodeBase: number;
+            /** @default 10 */
+            movieBase: number;
+            /** @default 20 */
+            monitoredBonus: number;
+            /** @default 15 */
+            continuingBonus: number;
+            /** @default 40 */
+            recencyMax: number;
+            /** @default 168 */
+            recencyHalfLifeHours: number;
+        };
+        /** ProfileAssignmentCreate */
+        ProfileAssignmentCreate: {
+            /** Format: uuid */
+            profileId: string;
+            /** Format: uuid */
+            bazarrInstanceId: string;
+            /** @enum {string} */
+            scopeType: "instance" | "library" | "series" | "movie";
+            /** @default  */
+            scopeKey: string;
+        };
+        /** ProfileAssignmentRead */
+        ProfileAssignmentRead: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            profileId: string;
+            profileName: string;
+            /** Format: uuid */
+            bazarrInstanceId: string;
+            /** @enum {string} */
+            scopeType: "instance" | "library" | "series" | "movie";
+            scopeKey: string;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        /** ProfileEditorResponse */
+        ProfileEditorResponse: {
+            profile: components["schemas"]["TranslationProfileRead"];
+            findings: components["schemas"]["PolicyFindingRead"][];
+        };
+        /** ProfileExport */
+        ProfileExport: {
+            name: string;
+            description?: string | null;
+            values?: components["schemas"]["PolicyValuesDto"] | null;
+        };
+        /** ProfileImport */
+        ProfileImport: {
+            name: string;
+            description?: string | null;
+            values?: components["schemas"]["PolicyValuesRequest"] | null;
+        };
+        /** ProfileValidateRequest */
+        ProfileValidateRequest: {
+            values: components["schemas"]["PolicyValuesRequest"];
+        };
+        /** ProfileValidateResponse */
+        ProfileValidateResponse: {
+            findings: components["schemas"]["PolicyFindingRead"][];
+        };
+        /** ProvenanceDto */
+        ProvenanceDto: {
+            /** @enum {string} */
+            layer: "global" | "preset" | "profile" | "override";
+            sourceId?: string | null;
+            sourceName?: string | null;
+        };
+        /** RailSettingsDto */
+        RailSettingsDto: {
+            dispatchWindowK?: number | null;
+            hourlyCap?: number | null;
+            dailyCap?: number | null;
+            weeklyCap?: number | null;
+            budgetDailyCharacters?: number | null;
+            breakerFailureThreshold?: number | null;
+            breakerProbeMinutes?: number | null;
+        };
+        /** ResolvedValueDto[bool] */
+        ResolvedValueDto_bool_: {
+            value: boolean;
+            provenance: components["schemas"]["ProvenanceDto"];
+        };
+        /** ResolvedValueDto[int] */
+        ResolvedValueDto_int_: {
+            value: number;
+            provenance: components["schemas"]["ProvenanceDto"];
+        };
+        /** ResolvedValueDto[list[str]] */
+        ResolvedValueDto_list_str_: {
+            value: string[];
+            provenance: components["schemas"]["ProvenanceDto"];
+        };
+        /** ResolvedValueDto[PriorityWeightsDto] */
+        "ResolvedValueDto_perevoditarr.modules.policy.schemas.PriorityWeightsDto_": {
+            value: components["schemas"]["PriorityWeightsDto"];
+            provenance: components["schemas"]["ProvenanceDto"];
         };
         /** SeriesRead */
         SeriesRead: {
@@ -972,6 +1768,31 @@ export interface components {
             environment: string;
             databaseDialect: string;
         };
+        /** TranslationProfileCreate */
+        TranslationProfileCreate: {
+            name: string;
+            description?: string | null;
+            values?: components["schemas"]["PolicyValuesRequest"] | null;
+        };
+        /** TranslationProfileRead */
+        TranslationProfileRead: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            description: string | null;
+            values: components["schemas"]["PolicyValuesDto"];
+            assignmentCount: number;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        /** TranslationProfileUpdate */
+        TranslationProfileUpdate: {
+            name?: string;
+            description?: string | null;
+            values?: components["schemas"]["PolicyValuesRequest"];
+        };
         /** UserRead */
         UserRead: {
             /** Format: uuid */
@@ -981,6 +1802,13 @@ export interface components {
             isAdmin: boolean;
             /** Format: date-time */
             createdAt: string;
+        };
+        /** VolumeEstimateDto */
+        VolumeEstimateDto: {
+            lines: number;
+            characters: number;
+            /** @enum {string} */
+            basis: "actuals" | "heuristic";
         };
         /** WantedRead */
         WantedRead: {
@@ -2356,6 +3184,1106 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DoctorRunRead"];
+                };
+            };
+        };
+    };
+    activatePreset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                preset_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Document created, URL follows */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PresetRead"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    listProfileAssignments: {
+        parameters: {
+            query?: {
+                bazarr_instance_id?: string | null;
+                profile_id?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileAssignmentRead"][];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    createProfileAssignment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProfileAssignmentCreate"];
+            };
+        };
+        responses: {
+            /** @description Document created, URL follows */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileAssignmentRead"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    listExclusions: {
+        parameters: {
+            query?: {
+                bazarr_instance_id?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExclusionRead"][];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    createExclusion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExclusionCreate"];
+            };
+        };
+        responses: {
+            /** @description Document created, URL follows */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExclusionRead"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    listPresets: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PresetRead"][];
+                };
+            };
+        };
+    };
+    createPreset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PresetCreate"];
+            };
+        };
+        responses: {
+            /** @description Document created, URL follows */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PresetRead"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    listTranslationProfiles: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TranslationProfileRead"][];
+                };
+            };
+        };
+    };
+    createTranslationProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TranslationProfileCreate"];
+            };
+        };
+        responses: {
+            /** @description Document created, URL follows */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileEditorResponse"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    deleteProfileAssignment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                assignment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Request fulfilled, nothing follows */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    deleteExclusion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                exclusion_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Request fulfilled, nothing follows */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    deleteOverride: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                override_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Request fulfilled, nothing follows */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    deletePreset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                preset_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Request fulfilled, nothing follows */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    updatePreset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                preset_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PresetUpdate"];
+            };
+        };
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PresetRead"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    getTranslationProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profile_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileEditorResponse"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    deleteTranslationProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profile_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Request fulfilled, nothing follows */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    updateTranslationProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profile_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TranslationProfileUpdate"];
+            };
+        };
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileEditorResponse"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    getEffectivePolicy: {
+        parameters: {
+            query: {
+                bazarr_instance_id: string;
+                media_type: "series" | "episode" | "movie";
+                sonarr_series_id?: number | null;
+                sonarr_episode_id?: number | null;
+                radarr_id?: number | null;
+                tags?: string | null;
+                monitored?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EffectivePolicyRead"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    exportPolicies: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PolicyExport"];
+                };
+            };
+        };
+    };
+    forkPreset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                preset_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PresetFork"];
+            };
+        };
+        responses: {
+            /** @description Document created, URL follows */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PresetRead"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    importPolicies: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PolicyImportRequest"];
+            };
+        };
+        responses: {
+            /** @description Document created, URL follows */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PolicyImportResult"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    listOverrides: {
+        parameters: {
+            query?: {
+                bazarr_instance_id?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OverrideRead"][];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    upsertOverride: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OverrideUpsert"];
+            };
+        };
+        responses: {
+            /** @description Document created, URL follows */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OverrideRead"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    validateProfileValues: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProfileValidateRequest"];
+            };
+        };
+        responses: {
+            /** @description Document created, URL follows */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileValidateResponse"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    listIntentBacklog: {
+        parameters: {
+            query?: {
+                bazarr_instance_id?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_perevoditarr.modules.intents.schemas.IntentRead_"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    explainCandidate: {
+        parameters: {
+            query: {
+                bazarr_instance_id: string;
+                media_type: "episode" | "movie";
+                external_media_id: number;
+                language: string;
+                forced?: boolean;
+                hi?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExplainRead"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    getIntent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                intent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntentDetail"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    listIntentsInFlight: {
+        parameters: {
+            query?: {
+                bazarr_instance_id?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_perevoditarr.modules.intents.schemas.IntentRead_"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    listIntents: {
+        parameters: {
+            query?: {
+                /** @description Comma-separated intent states, e.g. `discovered,eligible` */
+                states?: string | null;
+                bazarr_instance_id?: string | null;
+                media_type?: "episode" | "movie" | null;
+                target_language?: string | null;
+                created_after?: string | null;
+                created_before?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_perevoditarr.modules.intents.schemas.IntentRead_"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    getPlanPreview: {
+        parameters: {
+            query?: {
+                bazarr_instance_id?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanPreviewResponse"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
                 };
             };
         };

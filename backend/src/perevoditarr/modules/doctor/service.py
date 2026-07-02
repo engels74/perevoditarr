@@ -25,6 +25,7 @@ from perevoditarr.modules.instances import InstanceGateway, InstancesService
 from perevoditarr.modules.instances.models import BazarrInstance
 from perevoditarr.modules.instances.schemas import BazarrCapabilities
 from perevoditarr.modules.mirror.models import SyncRun
+from perevoditarr.modules.policy import PolicyService
 
 type DoctorTrigger = Literal["manual", "scheduled", "contextual"]
 
@@ -160,10 +161,12 @@ class DoctorService:
             base.profiles = profiles
             base.lingarr = await self._lingarr_context(instance)
             contexts.append(base)
+        policy = PolicyService(self.session, self.secret_box, self.gateway)
         return DoctorContext(
             now=datetime.now(UTC),
             instances=contexts,
             forward_auth_misconfigured=self.forward_auth_misconfigured,
+            translation_profiles=list(await policy.profile_summaries()),
         )
 
     # ------------------------------------------------------------ runs

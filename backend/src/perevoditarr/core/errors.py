@@ -21,7 +21,7 @@ class PerevoditarrError(Exception):
 
     def __init__(self, detail: str | None = None) -> None:
         super().__init__(detail or self.title)
-        self.detail = detail
+        self.detail: str | None = detail
 
 
 class NotFoundError(PerevoditarrError):

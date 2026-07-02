@@ -24,6 +24,8 @@ jobs:
       - run: uv sync --frozen
       - run: uv run ruff check
       - run: uv run ruff format --check
+      # typing gate: no global basedpyright ignores, warnings stay fatal
+      - run: uv run python tools/check_basedpyright_config.py
       - run: uv run basedpyright
       - run: uv run pytest
 

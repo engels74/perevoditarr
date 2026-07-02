@@ -7,7 +7,6 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 import msgspec
-import structlog
 from argon2 import PasswordHasher
 from argon2.exceptions import VerificationError, VerifyMismatchError
 from sqlalchemy import func, select
@@ -16,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 from perevoditarr.core.errors import ConflictError, NotFoundError
+from perevoditarr.core.logging import get_logger
 from perevoditarr.core.security import SecretBox
 from perevoditarr.modules.auth.models import ApiKey, AuthProviderConfig, User
 from perevoditarr.modules.auth.schemas import (
@@ -23,7 +23,7 @@ from perevoditarr.modules.auth.schemas import (
     OidcProviderSettings,
 )
 
-_logger = structlog.get_logger()
+_logger = get_logger()
 
 _hasher = PasswordHasher()  # argon2id with library defaults
 

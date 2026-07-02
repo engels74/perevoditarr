@@ -37,7 +37,7 @@ async def provide_doctor_service(
 
 
 class DoctorController(Controller):
-    path = "/doctor"
+    path: str = "/doctor"
     tags: Sequence[str] | None = ("doctor",)
 
     @post("/run", status_code=HTTP_200_OK, operation_id="runDoctor")

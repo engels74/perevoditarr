@@ -1,6 +1,7 @@
 """Instances module end-to-end (P1-T4): registration gate, discovery, health."""
 
 from collections.abc import Iterator
+from typing import override
 
 import httpx
 import pytest
@@ -13,6 +14,7 @@ from perevoditarr.modules.integrations.bazarr import BazarrClient
 from perevoditarr.modules.integrations.lingarr import LingarrClient
 from tests.conftest import complete_setup, csrf_headers
 from tests.simulators.scenario import Scenario
+from tests.support import as_obj, json_list, json_obj
 
 
 class SimulatorGateway(InstanceGateway):
@@ -22,6 +24,7 @@ class SimulatorGateway(InstanceGateway):
         super().__init__(HttpClientRegistry())
         self.scenario: Scenario = scenario
 
+    @override
     def bazarr(self, url: str, api_key: str) -> BazarrClient:
         transport = httpx.ASGITransport(app=self.scenario.bazarr.app)  # pyright: ignore[reportArgumentType]
         return BazarrClient(
@@ -30,6 +33,7 @@ class SimulatorGateway(InstanceGateway):
             )
         )
 
+    @override
     def lingarr(self, url: str, api_key: str | None) -> LingarrClient:
         transport = httpx.ASGITransport(app=self.scenario.lingarr.app)  # pyright: ignore[reportArgumentType]
         headers = {"X-Api-Key": api_key} if api_key else None
@@ -60,7 +64,7 @@ def _register_bazarr(
         headers=csrf_headers(client),
     )
     assert response.status_code == 201, response.text
-    return response.json()
+    return json_obj(response)
 
 
 class TestRegistration:
@@ -76,7 +80,7 @@ class TestRegistration:
         # the API key is write-only (FR-A5)
         assert "apiKey" not in created
         listing = client.get("/api/v1/instances/bazarr")
-        assert [i["name"] for i in listing.json()] == ["main"]
+        assert [as_obj(i)["name"] for i in json_list(listing)] == ["main"]
 
     def test_register_rejects_unsupported_version(
         self, client: TestClient[Litestar], scenario: Scenario
@@ -88,8 +92,8 @@ class TestRegistration:
             headers=csrf_headers(client),
         )
         assert response.status_code == 422
-        assert response.json()["code"] == "unsupported-version"
-        assert client.get("/api/v1/instances/bazarr").json() == []
+        assert json_obj(response)["code"] == "unsupported-version"
+        assert json_list(client.get("/api/v1/instances/bazarr")) == []
 
     def test_register_rejects_bad_credentials(
         self, client: TestClient[Litestar]
@@ -118,7 +122,7 @@ class TestRegistration:
             headers=csrf_headers(client),
         )
         assert response.status_code == 200
-        assert response.json()["enabled"] is False
+        assert json_obj(response)["enabled"] is False
 
 
 class TestConnectionTest:
@@ -133,12 +137,12 @@ class TestConnectionTest:
             headers=csrf_headers(client),
         )
         assert response.status_code == 201
-        body = response.json()
+        body = json_obj(response)
         assert body["reachable"] is True
         assert body["version"] == "1.5.6"
         assert body["versionSupported"] is True
         # dry validation never persists (P1-T4)
-        assert client.get("/api/v1/instances/bazarr").json() == []
+        assert json_list(client.get("/api/v1/instances/bazarr")) == []
 
     def test_dry_validation_failure(self, client: TestClient[Litestar]) -> None:
         response = client.post(
@@ -147,7 +151,7 @@ class TestConnectionTest:
             headers=csrf_headers(client),
         )
         assert response.status_code == 201
-        assert response.json()["reachable"] is False
+        assert json_obj(response)["reachable"] is False
 
     def test_lingarr_test(self, client: TestClient[Litestar]) -> None:
         response = client.post(
@@ -156,8 +160,9 @@ class TestConnectionTest:
             headers=csrf_headers(client),
         )
         assert response.status_code == 201
-        assert response.json()["version"] == "1.2.4"
-        assert response.json()["versionSupported"] is True
+        body = json_obj(response)
+        assert body["version"] == "1.2.4"
+        assert body["versionSupported"] is True
 
 
 class TestLingarrDiscovery:
@@ -169,7 +174,7 @@ class TestLingarrDiscovery:
             f"/api/v1/instances/bazarr/{created['id']}/lingarr-discovery"
         )
         assert discovery.status_code == 200
-        body = discovery.json()
+        body = json_obj(discovery)
         assert body["configured"] is True
         assert body["url"] == "http://lingarr.test"
         assert body["hasApiKey"] is True
@@ -183,12 +188,12 @@ class TestLingarrDiscovery:
             headers=csrf_headers(client),
         )
         assert confirm.status_code == 201, confirm.text
-        lingarr = confirm.json()
+        lingarr = json_obj(confirm)
         assert lingarr["hasApiKey"] is True
         assert lingarr["version"] == "1.2.4"
 
-        bazarr_list = client.get("/api/v1/instances/bazarr").json()
-        assert bazarr_list[0]["lingarrInstanceId"] == lingarr["id"]
+        bazarr_list = json_list(client.get("/api/v1/instances/bazarr"))
+        assert as_obj(bazarr_list[0])["lingarrInstanceId"] == lingarr["id"]
 
     def test_linked_lingarr_cannot_be_deleted(
         self, client: TestClient[Litestar]
@@ -199,7 +204,7 @@ class TestLingarrDiscovery:
             json={"name": "shared"},
             headers=csrf_headers(client),
         )
-        lingarr_id = confirm.json()["id"]
+        lingarr_id = json_obj(confirm)["id"]
         blocked = client.delete(
             f"/api/v1/instances/lingarr/{lingarr_id}", headers=csrf_headers(client)
         )
@@ -226,10 +231,10 @@ class TestHealth:
             headers=csrf_headers(client),
         )
         assert response.status_code == 201
-        health = response.json()["health"]
+        health = as_obj(json_obj(response)["health"])
         assert health["status"] == "ok"
         assert health["queueDepth"] == 0
         assert health["version"] == "1.5.6"
         # snapshot survives via the list endpoint (restart-safe persistence)
-        listing = client.get("/api/v1/instances/bazarr").json()
-        assert listing[0]["health"]["status"] == "ok"
+        listing = json_list(client.get("/api/v1/instances/bazarr"))
+        assert as_obj(as_obj(listing[0])["health"])["status"] == "ok"

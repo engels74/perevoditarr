@@ -20,6 +20,7 @@ from perevoditarr.modules.doctor.checks import (
 from perevoditarr.modules.doctor.framework import (
     BazarrContext,
     DoctorContext,
+    Finding,
     LingarrContext,
 )
 from perevoditarr.modules.integrations.bazarr.schemas import (
@@ -86,8 +87,8 @@ def _context(instance: BazarrContext, **kwargs: object) -> DoctorContext:
     )
 
 
-def _severities(findings: list[object]) -> list[str]:
-    return [f.severity for f in findings]  # pyright: ignore[reportAttributeAccessIssue]
+def _severities(findings: list[Finding]) -> list[str]:
+    return [f.severity for f in findings]
 
 
 class TestHealthyBaseline:

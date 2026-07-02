@@ -43,6 +43,8 @@ hooks = [
   { id = "ruff-format", name = "ruff format", entry = "uv run --project backend ruff format", language = "system", types = ["python"], files = "^backend/" },
   { id = "ruff-check", name = "ruff check", entry = "uv run --project backend ruff check --fix", language = "system", types = ["python"], files = "^backend/" },
   { id = "basedpyright", name = "basedpyright", entry = "uv run --directory backend basedpyright", language = "system", types = ["python"], files = "^backend/", pass_filenames = false },
+  # Typing gate: no global basedpyright ignores, warnings stay fatal (see tools/check_basedpyright_config.py)
+  { id = "basedpyright-config-gate", name = "basedpyright config gate", entry = "uv run --directory backend python tools/check_basedpyright_config.py", language = "system", files = "^backend/(pyproject\\.toml|tools/|pyrightconfig\\.json|\\.basedpyright/|src/|tests/)", pass_filenames = false },
   # Frontend (Bun / Biome / svelte-check; svelte-check covers the tsc type gate).
   # Biome replaces the plan's prettier+eslint hooks by explicit project decision.
   { id = "biome-check", name = "biome check", entry = "bun run --cwd frontend lint", language = "system", files = "^frontend/", pass_filenames = false },

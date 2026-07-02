@@ -13,6 +13,7 @@ The two behaviors that are the point of this simulator (P1-T8):
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from typing import cast
 
 from litestar import Litestar, MediaType, Request, Response, get, post
 from litestar.datastructures import State
@@ -96,18 +97,18 @@ class LingarrSimulator:
         version: str = "1.2.4",
         now: Callable[[], datetime] | None = None,
     ) -> None:
-        self.version = version
+        self.version: str = version
         self.now: Callable[[], datetime] = now or (lambda: datetime.now(UTC))
         self.settings: dict[str, str] = dict(DEFAULT_SETTINGS)
         self.settings["api_key"] = api_key
         self.requests: dict[int, SimTranslationRequest] = {}
-        self._next_id = 0
+        self._next_id: int = 0
         # §6.5: mapping of Sonarr EPISODE id -> internal media id. Bazarr sends
         # the SERIES id, which is (almost) never a valid episode id, so lookups
         # fall through to the None sentinel by default.
         self.episodes_by_sonarr_episode_id: dict[int, int] = {}
         self.movies_by_radarr_id: dict[int, int] = {}
-        self._failure = _FailureInjection()
+        self._failure: _FailureInjection = _FailureInjection()
         # keep content requests in-flight (InProgress, no lines returned yet)?
         # not needed for P1; the content endpoint completes synchronously like
         # upstream (Bazarr holds the HTTP connection).
@@ -228,7 +229,7 @@ class LingarrSimulator:
             pageSize: int = 20,
         ) -> Response[dict[str, object]]:
             if (denied := sim._denied(request)) is not None:
-                return denied  # pyright: ignore[reportReturnType]
+                return denied
             rows = sorted(sim.requests.values(), key=lambda r: -r.id)
             window = rows[(pageNumber - 1) * pageSize : pageNumber * pageSize]
             return Response(
@@ -300,7 +301,7 @@ class LingarrSimulator:
         @get("/api/statistics", sync_to_thread=False)
         def statistics(request: _Req) -> Response[dict[str, object]]:
             if (denied := sim._denied(request)) is not None:
-                return denied  # pyright: ignore[reportReturnType]
+                return denied
             completed = [r for r in sim.requests.values() if r.status == "Completed"]
             return Response(
                 {
@@ -350,7 +351,9 @@ class LingarrSimulator:
             target = str(data["targetLanguage"])
             lines_raw = data.get("lines")
             lines: list[dict[str, object]] = (
-                lines_raw if isinstance(lines_raw, list) else []
+                cast("list[dict[str, object]]", lines_raw)
+                if isinstance(lines_raw, list)
+                else []
             )
 
             # §6.5: Episode arrMediaId (actually the series id) is resolved as

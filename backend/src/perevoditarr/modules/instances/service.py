@@ -71,11 +71,11 @@ def lingarr_read(instance: LingarrInstance) -> LingarrInstanceRead:
 
 
 class BazarrInstanceRepository(SQLAlchemyAsyncRepository[BazarrInstance]):
-    model_type = BazarrInstance
+    model_type: type[BazarrInstance] = BazarrInstance
 
 
 class LingarrInstanceRepository(SQLAlchemyAsyncRepository[LingarrInstance]):
-    model_type = LingarrInstance
+    model_type: type[LingarrInstance] = LingarrInstance
 
 
 class InstancesService:
@@ -229,8 +229,7 @@ class InstancesService:
         )
         if linked:
             raise ConflictError(
-                f"Lingarr instance is linked to {len(linked)} Bazarr instance(s); "
-                "unlink them first"
+                f"Lingarr instance is linked to {len(linked)} Bazarr instance(s); unlink them first"
             )
         await self.session.delete(instance)
         await self.session.commit()

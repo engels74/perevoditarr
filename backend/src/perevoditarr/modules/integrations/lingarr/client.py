@@ -64,8 +64,7 @@ def ensure_supported_version(raw: str) -> tuple[int, ...]:
     if version < MIN_LINGARR_VERSION:
         minimum = ".".join(str(p) for p in MIN_LINGARR_VERSION)
         raise UnsupportedVersionError(
-            f"Lingarr {raw} is not supported: Perevoditarr requires >= {minimum} "
-            "(the release line validated during integration research)"
+            f"Lingarr {raw} is not supported: Perevoditarr requires >= {minimum} (the release line validated during integration research)"
         )
     return version
 

@@ -56,8 +56,7 @@ def ensure_supported_version(raw: str) -> tuple[int, ...]:
     if version < MIN_BAZARR_VERSION:
         minimum = ".".join(str(p) for p in MIN_BAZARR_VERSION)
         raise UnsupportedVersionError(
-            f"Bazarr {raw} is not supported: Perevoditarr requires >= {minimum} "
-            "(asynchronous jobs queue; PRD §6.1)"
+            f"Bazarr {raw} is not supported: Perevoditarr requires >= {minimum} (asynchronous jobs queue; PRD §6.1)"
         )
     return version
 

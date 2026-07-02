@@ -9,7 +9,7 @@ from litestar import Litestar
 from litestar.testing import TestClient
 from sqlalchemy.ext.asyncio import create_async_engine
 
-from perevoditarr import models as _models  # noqa: F401  # register all mappers
+from perevoditarr import models as models  # register all mappers (re-export)
 from perevoditarr.app import create_app
 from perevoditarr.core.db import metadata
 from perevoditarr.core.settings import AppSettings

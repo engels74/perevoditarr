@@ -8,10 +8,10 @@ import asyncio
 import time
 from datetime import UTC, datetime
 
-import structlog
 from advanced_alchemy.extensions.litestar import SQLAlchemyAsyncConfig
 
 from perevoditarr.core.errors import PerevoditarrError
+from perevoditarr.core.logging import get_logger
 from perevoditarr.core.security import SecretBox
 from perevoditarr.core.sse import SseBus
 from perevoditarr.modules.instances.gateway import InstanceGateway
@@ -19,7 +19,7 @@ from perevoditarr.modules.instances.schemas import BazarrCapabilities, InstanceH
 from perevoditarr.modules.instances.service import InstancesService
 from perevoditarr.modules.integrations.bazarr import detect_capabilities
 
-_logger = structlog.get_logger()
+_logger = get_logger()
 
 
 async def check_bazarr_health(

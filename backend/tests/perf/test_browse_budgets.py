@@ -16,7 +16,7 @@ import pytest
 from sqlalchemy import insert
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
-from perevoditarr import models as _models  # noqa: F401  # register all mappers
+from perevoditarr import models as models  # register all mappers (re-export)
 from perevoditarr.core.db import metadata
 from perevoditarr.modules.instances.models import BazarrInstance
 from perevoditarr.modules.mirror.models import (

@@ -64,7 +64,7 @@ async def provide_mirror_sync_service(
 
 
 class MirrorController(Controller):
-    path = "/mirror"
+    path: str = "/mirror"
     tags: Sequence[str] | None = ("mirror",)
 
     @get("/series", operation_id="listSeries")

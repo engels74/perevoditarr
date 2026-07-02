@@ -9,11 +9,11 @@ in plaintext after write.
 import base64
 import secrets
 
-import structlog
 from cryptography.fernet import Fernet, InvalidToken
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 
+from perevoditarr.core.logging import get_logger
 from perevoditarr.core.settings import AppSettings
 
 _SECRETS_INFO = b"perevoditarr.secrets-at-rest"
@@ -34,9 +34,9 @@ def resolve_secret_key(settings: AppSettings) -> str:
         return settings.secret_key
     if _ephemeral_secret is None:
         _ephemeral_secret = secrets.token_urlsafe(48)
-        structlog.get_logger().warning(
+        get_logger().warning(
             "PEREVODITARR_SECRET_KEY not set - using an ephemeral dev key; "
-            "sessions and encrypted secrets will not survive a restart"
+            + "sessions and encrypted secrets will not survive a restart"
         )
     return _ephemeral_secret
 

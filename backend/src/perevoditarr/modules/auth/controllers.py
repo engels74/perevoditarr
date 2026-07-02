@@ -66,7 +66,7 @@ def _callback_uri(request: Request[object, object, State]) -> str:
 
 
 class SetupController(Controller):
-    path = "/setup"
+    path: str = "/setup"
     tags: Sequence[str] | None = ("setup",)
 
     @get("/status", exclude_from_auth=True, operation_id="getSetupStatus")
@@ -96,7 +96,7 @@ class SetupController(Controller):
 
 
 class AuthController(Controller):
-    path = "/auth"
+    path: str = "/auth"
     tags: Sequence[str] | None = ("auth",)
 
     # --- sessions --------------------------------------------------------
@@ -346,7 +346,7 @@ class AuthController(Controller):
             # authentication bypass waiting to happen.
             raise DomainValidationError(
                 "PEREVODITARR_TRUSTED_PROXIES must be configured before "
-                "enabling forward-auth"
+                + "enabling forward-auth"
             )
         stored = ForwardAuthProviderSettings(
             enabled=data.enabled,

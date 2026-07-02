@@ -1,8 +1,10 @@
 """structlog wiring: JSON renderer in prod, console in dev, request-id binding."""
 
+from typing import cast
 from uuid import uuid4
 
 import structlog
+from litestar.enums import ScopeType
 from litestar.logging.config import (
     StructLoggingConfig,
     default_logger_factory,
@@ -10,10 +12,23 @@ from litestar.logging.config import (
 )
 from litestar.plugins.structlog import StructlogConfig, StructlogPlugin
 from litestar.types import ASGIApp, Message, Receive, Scope, Send
+from structlog.typing import FilteringBoundLogger
 
 from perevoditarr.core.settings import AppSettings
 
 REQUEST_ID_HEADER = b"x-request-id"
+
+
+def get_logger() -> FilteringBoundLogger:
+    """Typed accessor for the app's structlog logger — use this, not structlog's.
+
+    ``structlog.get_logger()`` returns ``Any`` (a lazy proxy bound at first
+    use). Under this app's configuration the bound wrapper is structlog's
+    default ``FilteringBoundLogger`` (litestar's ``StructLoggingConfig`` leaves
+    ``wrapper_class`` unset), so this helper is the one sanctioned cast for
+    that untyped boundary.
+    """
+    return cast("FilteringBoundLogger", structlog.get_logger())
 
 
 def build_structlog_plugin(settings: AppSettings) -> StructlogPlugin:
@@ -37,7 +52,7 @@ def request_id_middleware(app: ASGIApp) -> ASGIApp:
     """
 
     async def middleware(scope: Scope, receive: Receive, send: Send) -> None:
-        if scope["type"] != "http":
+        if scope["type"] != ScopeType.HTTP:
             await app(scope, receive, send)
             return
         inbound = dict(scope["headers"]).get(REQUEST_ID_HEADER, b"")

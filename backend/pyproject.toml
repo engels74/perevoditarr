@@ -61,14 +61,16 @@ indent-style = "space"
 skip-magic-trailing-comma = false
 
 [tool.basedpyright]
+# HARD RULE — NO GLOBAL DIAGNOSTIC OVERRIDES IN THIS TABLE. EVER.
+# Never set failOnWarnings, never disable a report* rule here, never add a
+# baseline file, and never widen this table beyond the allowlisted keys below.
+# CI and the prek hooks enforce this via tools/check_basedpyright_config.py.
+# Warnings are failures: fix the code. If a third-party API is genuinely
+# untyped at a single call site, suppress that one line with
+# `# pyright: ignore[ruleName]` plus a short justification — nothing broader.
 pythonVersion = "3.14"
 typeCheckingMode = "recommended"
-include = ["src", "tests"]
-reportMissingTypeStubs = false
-# recommended-mode diagnostics stay visible; the commit/CI gate is errors.
-# (Litestar/httpx expose enough partially-unknown surface that warning-level
-# noise is structural, not fixable in this repo.)
-failOnWarnings = false
+include = ["src", "tests", "tools"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

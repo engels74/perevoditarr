@@ -118,7 +118,7 @@ class MirrorService:
             .where(Episode.series_id.in_(series_ids))
             .group_by(Episode.series_id)
         )
-        return {series_id: int(count) for series_id, count in result.all()}
+        return {series_id: int(count) for series_id, count in result.tuples().all()}
 
     async def series_episodes(
         self, series_id: UUID, *, limit: int = 100, offset: int = 0
@@ -263,9 +263,7 @@ class MirrorService:
     async def coverage(self, *, instance_id: UUID | None = None) -> list[CoverageStat]:
         def scoped[T: Select[tuple[str, int]]](statement: T) -> T:
             if instance_id is not None:
-                return statement.where(  # pyright: ignore[reportReturnType]
-                    Subtitle.bazarr_instance_id == instance_id
-                )
+                return statement.where(Subtitle.bazarr_instance_id == instance_id)
             return statement
 
         episodes_q = scoped(
@@ -296,18 +294,19 @@ class MirrorService:
 
         episode_counts = {
             row[0]: int(row[1])
-            for row in (await self.session.execute(episodes_q)).all()
+            for row in (await self.session.execute(episodes_q)).tuples().all()
         }
         movie_counts = {
-            row[0]: int(row[1]) for row in (await self.session.execute(movies_q)).all()
+            row[0]: int(row[1])
+            for row in (await self.session.execute(movies_q)).tuples().all()
         }
         wanted_episode_counts = {
             row[0]: int(row[1])
-            for row in (await self.session.execute(wanted_episodes_q)).all()
+            for row in (await self.session.execute(wanted_episodes_q)).tuples().all()
         }
         wanted_movie_counts = {
             row[0]: int(row[1])
-            for row in (await self.session.execute(wanted_movies_q)).all()
+            for row in (await self.session.execute(wanted_movies_q)).tuples().all()
         }
         languages = sorted(
             set(episode_counts)

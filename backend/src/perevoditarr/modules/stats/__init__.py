@@ -20,7 +20,11 @@ from perevoditarr.modules.stats.reconciliation import (
     run_budget_reconciliation,
     upsert_actuals,
 )
-from perevoditarr.modules.stats.rollup import run_stats_rollup, stats_rollup_loop
+from perevoditarr.modules.stats.rollup import (
+    run_stats_backfill,
+    run_stats_rollup,
+    stats_rollup_loop,
+)
 from perevoditarr.modules.stats.service import StatsService
 
 __all__ = [
@@ -33,6 +37,7 @@ __all__ = [
     "effective_actuals",
     "provide_stats_service",
     "run_budget_reconciliation",
+    "run_stats_backfill",
     "run_stats_rollup",
     "stats_rollup_loop",
     "upsert_actuals",

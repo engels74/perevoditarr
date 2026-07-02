@@ -14,7 +14,7 @@ from datetime import UTC, date, datetime, timedelta
 from uuid import UUID
 
 from advanced_alchemy.extensions.litestar import SQLAlchemyAsyncConfig
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from perevoditarr.core.logging import get_logger
@@ -53,6 +53,34 @@ async def run_stats_rollup(
     start_day = moment.date() - timedelta(days=max(0, days - 1))
     window_start = datetime.combine(start_day, datetime.min.time(), tzinfo=UTC)
     async with alchemy.get_session() as session:
+        return await _rollup_window(session, start_day=start_day, since=window_start)
+
+
+async def run_stats_backfill(alchemy: SQLAlchemyAsyncConfig) -> int:
+    """One-time historical backfill for upgrades that already have an
+    `intent_event` audit trail but no rollup rows yet.
+
+    The periodic rollup only recomputes a trailing two-day window, so on the
+    first boot after this feature ships every outcome older than that window
+    would stay invisible to the dashboard's 7/30/90-day ranges until enough
+    real time passed. While `stats_daily` is still empty, recompute every UTC
+    day from the earliest recorded outcome event forward so the full history is
+    materialised once. A no-op as soon as any rollup row exists — the
+    trailing-window job then keeps it current. Returns the number of
+    `stats_daily` rows written."""
+    async with alchemy.get_session() as session:
+        already_rolled = await session.scalar(select(StatsDaily.id).limit(1))
+        if already_rolled is not None:
+            return 0
+        earliest = await session.scalar(
+            select(func.min(IntentEvent.created_at)).where(
+                IntentEvent.to_state.in_(_OUTCOME_STATES)
+            )
+        )
+        if earliest is None:
+            return 0
+        start_day = _utc(earliest).date()
+        window_start = datetime.combine(start_day, datetime.min.time(), tzinfo=UTC)
         return await _rollup_window(session, start_day=start_day, since=window_start)
 
 

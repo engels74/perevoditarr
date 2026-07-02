@@ -73,7 +73,7 @@ async def dispatch_characters_since(
     total = 0
     for media_type, count in (await session.execute(stmt)).tuples():
         key = str(media_type)
-        per_item = per_media.get(key, heuristic.get(key, 0))
+        per_item = per_media.get(key, heuristic.get(key, max(heuristic.values())))
         total += per_item * count
     return total
 

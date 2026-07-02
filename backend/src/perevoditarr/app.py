@@ -110,6 +110,7 @@ from perevoditarr.modules.stats import (
     budget_reconcile_loop,
     provide_stats_service,
     run_budget_reconciliation,
+    run_stats_backfill,
     run_stats_rollup,
     stats_rollup_loop,
 )
@@ -380,6 +381,17 @@ def create_app(settings: AppSettings | None = None) -> Litestar:
             get_logger().warning(
                 "startup budget reconciliation failed", error=str(error)
             )
+        # One-time historical backfill: the periodic rollup only maintains a
+        # trailing two-day window, so on the first boot after this feature ships
+        # an existing intent_event history would leave the dashboard's longer
+        # ranges empty. Runs the full-history rollup once while the tables are
+        # empty; a no-op on every subsequent boot. Must precede the trailing
+        # rollup below, which would otherwise populate stats_daily first and
+        # trip the emptiness guard.
+        try:
+            _ = await run_stats_backfill(alchemy_config)
+        except Exception as error:
+            get_logger().warning("startup stats backfill failed", error=str(error))
         try:
             _ = await run_stats_rollup(alchemy_config)
         except Exception as error:

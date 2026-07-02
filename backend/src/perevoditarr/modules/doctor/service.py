@@ -27,6 +27,7 @@ from perevoditarr.modules.instances.schemas import BazarrCapabilities
 from perevoditarr.modules.mirror.models import SyncRun
 from perevoditarr.modules.policy import PolicyService
 from perevoditarr.modules.rails.models import RailState
+from perevoditarr.modules.telemetry import TelemetryHealthRegistry
 
 type DoctorTrigger = Literal["manual", "scheduled", "contextual"]
 
@@ -77,12 +78,14 @@ class DoctorService:
         sse_bus: SseBus,
         *,
         forward_auth_misconfigured: bool = False,
+        telemetry_health: TelemetryHealthRegistry | None = None,
     ) -> None:
         self.session: AsyncSession = session
         self.secret_box: SecretBox = secret_box
         self.gateway: InstanceGateway = gateway
         self.sse_bus: SseBus = sse_bus
         self.forward_auth_misconfigured: bool = forward_auth_misconfigured
+        self.telemetry_health: TelemetryHealthRegistry | None = telemetry_health
 
     # ------------------------------------------------------- context
 
@@ -181,6 +184,16 @@ class DoctorService:
                 dispatch_window_k=window_k,
                 breaker_state=breaker_state,
                 breaker_consecutive_failures=breaker_failures,
+                telemetry_streams=(
+                    {
+                        stream: status.state
+                        for stream, status in self.telemetry_health.for_instance(
+                            instance.id
+                        ).items()
+                    }
+                    if self.telemetry_health is not None
+                    else {}
+                ),
             )
             try:
                 status = await client.system_status()

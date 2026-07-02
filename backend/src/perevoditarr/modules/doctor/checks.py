@@ -564,6 +564,46 @@ class CircuitBreakerStateCheck:
 
 
 @register
+class TelemetryStreamHealthCheck:
+    """P3-T4/T6: surface telemetry streams running on the polling fallback."""
+
+    check_id: str = "FR-DR13"
+
+    def run(self, context: DoctorContext) -> list[Finding]:
+        findings: list[Finding] = []
+        for instance in context.instances:
+            degraded = sorted(
+                stream
+                for stream, state in instance.telemetry_streams.items()
+                if state != "live"
+            )
+            if not degraded:
+                continue
+            findings.append(
+                Finding(
+                    check_id=self.check_id,
+                    severity="info",
+                    message=(
+                        f"Telemetry for '{instance.name}' is on the polling "
+                        f"fallback ({', '.join(degraded)})"
+                    ),
+                    explanation=(
+                        "The websocket stream is unavailable (often a reverse "
+                        "proxy blocking upgrades). Live UI still works via "
+                        "polling (§7.3); this is graceful, not an error."
+                    ),
+                    fix_guidance=(
+                        "To restore push updates, allow WebSocket upgrades to "
+                        "Bazarr/Lingarr through any proxy in front of them."
+                    ),
+                    bazarr_instance_id=instance.instance_id,
+                    data={"streams": degraded},
+                )
+            )
+        return findings
+
+
+@register
 class TransportRetryBanCheck:
     """FR-DR9: Perevoditarr's own transport layer performs no retries."""
 

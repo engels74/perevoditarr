@@ -60,6 +60,9 @@ class BazarrContext(msgspec.Struct, kw_only=True):
     dispatch_window_k: int = 2
     breaker_state: str = "closed"
     breaker_consecutive_failures: int = 0
+    # Telemetry stream health (P3-T4/T6): stream name -> state (live|degraded|
+    # down); empty when the telemetry plane is disabled.
+    telemetry_streams: dict[str, str] = msgspec.field(default_factory=dict)
 
 
 class DoctorContext(msgspec.Struct, kw_only=True):

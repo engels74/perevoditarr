@@ -43,6 +43,7 @@ def app_settings(tmp_path: Path) -> AppSettings:
         dispatch_interval_seconds=0,
         verify_interval_seconds=0,
         digest_interval_seconds=0,
+        telemetry_poll_interval_seconds=0,
     )
 
 

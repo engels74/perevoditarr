@@ -48,6 +48,9 @@ class AppSettings(msgspec.Struct, kw_only=True, frozen=True):
     dispatch_retry_base_seconds: int = 300
     dispatch_retry_cap_seconds: int = 21600
     digest_interval_seconds: int = 86400
+    # Telemetry: how often the polling fallback refreshes streams that aren't
+    # live on a websocket (P3-T4 / NFR-7); 0 disables the telemetry plane.
+    telemetry_poll_interval_seconds: int = 30
 
 
 _FIELD_NAMES = frozenset(field.name for field in msgspec.structs.fields(AppSettings))
@@ -101,6 +104,7 @@ def _validate(settings: AppSettings) -> None:
         "dispatch_interval_seconds",
         "verify_interval_seconds",
         "digest_interval_seconds",
+        "telemetry_poll_interval_seconds",
     ):
         if getattr(settings, field_name) < 0:
             raise SettingsError(

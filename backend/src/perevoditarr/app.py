@@ -102,6 +102,13 @@ from perevoditarr.modules.notifications import (
 )
 from perevoditarr.modules.policy import PolicyController, provide_policy_service
 from perevoditarr.modules.rails import RailsController, provide_rails_service
+from perevoditarr.modules.telemetry import (
+    TelemetryBridge,
+    TelemetryController,
+    TelemetryHealthRegistry,
+    provide_telemetry_health_service,
+    telemetry_loop,
+)
 
 SPA_DIR_ENV = "PEREVODITARR_SPA_DIR"
 
@@ -230,6 +237,37 @@ def create_app(settings: AppSettings | None = None) -> Litestar:
     # Process-singleton notification coalescer shared by the controller DI and
     # the background forwarders (P3-T5): per-(route, event) spam suppression.
     notification_coalescer = NotificationCoalescer()
+    # Telemetry (P3-T4): process-singleton stream-health registry; the SSE
+    # bridge + re-observation nudge are built inside the lifespan (they need the
+    # resolved gateway).
+    telemetry_health = TelemetryHealthRegistry()
+
+    def _make_telemetry_bridge(gateway: InstanceGateway) -> TelemetryBridge:
+        async def nudge(instance_id: UUID) -> None:
+            # A telemetry resource change triggers immediate re-observation of
+            # durable evidence — a nudge only, never a transition (§7.3).
+            await run_reconciliation(
+                alchemy_config,
+                gateway,
+                secret_box,
+                sse_bus,
+                instance_id=instance_id,
+                locks=instance_locks,
+            )
+            await run_verification(
+                alchemy_config,
+                gateway,
+                secret_box,
+                sse_bus,
+                max_attempts=resolved.dispatch_max_attempts,
+                retry_base_seconds=resolved.dispatch_retry_base_seconds,
+                retry_cap_seconds=resolved.dispatch_retry_cap_seconds,
+                instance_id=instance_id,
+                locks=instance_locks,
+                notification_coalescer=notification_coalescer,
+            )
+
+        return TelemetryBridge(sse_bus, nudge)
 
     def _make_wanted_sync_hook(gateway: InstanceGateway) -> WantedSyncCompleted:
         # Wanted-sync completion ⇒ discovery, then reconciliation, for that
@@ -421,6 +459,19 @@ def create_app(settings: AppSettings | None = None) -> Litestar:
             tasks.append(asyncio.create_task(_digest_loop()))
         if resolved.doctor_interval_seconds > 0:
             tasks.append(asyncio.create_task(_doctor_schedule_loop(gateway)))
+        if resolved.telemetry_poll_interval_seconds > 0:
+            tasks.append(
+                asyncio.create_task(
+                    telemetry_loop(
+                        alchemy_config,
+                        gateway,
+                        secret_box,
+                        _make_telemetry_bridge(gateway),
+                        telemetry_health,
+                        resolved.telemetry_poll_interval_seconds,
+                    )
+                )
+            )
         try:
             yield
         finally:
@@ -446,6 +497,7 @@ def create_app(settings: AppSettings | None = None) -> Litestar:
                             and forward.enabled
                             and not auth_runtime.trusted_networks
                         ),
+                        telemetry_health=telemetry_health,
                     )
                     result = await service.run("scheduled")
                     critical = [
@@ -512,6 +564,7 @@ def create_app(settings: AppSettings | None = None) -> Litestar:
             RailsController,
             QuarantineController,
             NotificationsController,
+            TelemetryController,
         ],
     )
     route_handlers: list[Router] = [api_v1]
@@ -576,6 +629,10 @@ def create_app(settings: AppSettings | None = None) -> Litestar:
                 _singleton(notification_coalescer), sync_to_thread=False
             ),
             "notifications_service": Provide(provide_notifications_service),
+            "telemetry_health": Provide(
+                _singleton(telemetry_health), sync_to_thread=False
+            ),
+            "telemetry_health_service": Provide(provide_telemetry_health_service),
             "wanted_sync_hook": Provide(provide_wanted_sync_hook, sync_to_thread=False),
         },
         openapi_config=OpenAPIConfig(

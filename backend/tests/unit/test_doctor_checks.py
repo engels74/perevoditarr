@@ -12,6 +12,7 @@ from perevoditarr.modules.doctor.checks import (
     LingarrServiceConfiguredCheck,
     OperationalSanityCheck,
     SubtitleValidationLimitsCheck,
+    TelemetryStreamHealthCheck,
     TranslatorWiringCheck,
     TransportRetryBanCheck,
     UpgradeTranslatedCheck,
@@ -266,7 +267,18 @@ def test_breaker_surfacing() -> None:
     assert findings[0].data == {"breakerState": "open", "consecutiveFailures": 5}
 
 
+def test_telemetry_stream_health_surfacing() -> None:
+    assert TelemetryStreamHealthCheck().run(_context(_healthy_instance())) == []
+    degraded = _context(
+        _healthy_instance(telemetry_streams={"bazarr_socketio": "degraded"})
+    )
+    findings = TelemetryStreamHealthCheck().run(degraded)
+    assert _severities(findings) == ["info"]
+    assert findings[0].data == {"streams": ["bazarr_socketio"]}
+
+
 def test_registry_contains_all_checks() -> None:
-    # FR-DR1..FR-DR11 (P1-T6) plus the P3-T6 circuit-breaker surfacing (FR-DR12).
+    # FR-DR1..FR-DR11 (P1-T6) plus P3 additions: circuit-breaker surfacing
+    # (FR-DR12) and telemetry stream health (FR-DR13).
     ids = sorted(check.check_id for check in all_checks())
-    assert ids == sorted(f"FR-DR{n}" for n in range(1, 13))
+    assert ids == sorted(f"FR-DR{n}" for n in range(1, 14))

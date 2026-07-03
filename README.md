@@ -37,7 +37,8 @@ breakers, quarantine) and staying safe-by-default.
 ## Quick Start
 
 Perevoditarr is a monorepo — a Python/Litestar backend and a SvelteKit SPA. In
-development you run both; the SPA dev server proxies `/api` and `/sse` to the backend.
+development you run both; the SPA dev server proxies `/api` to the backend (this
+also covers the `/api/v1/events` SSE stream used for live updates).
 
 **Backend** — serves on `http://localhost:8000`:
 
@@ -95,7 +96,7 @@ separate deployment repository.
 
 | Endpoint | Auth | Description |
 |---|---|---|
-| `GET /health` | none | Liveness probe → `{"status":"ok"}`. |
+| `GET /api/v1/health` | none | Liveness probe → `{"status":"ok"}`. |
 | `/api/v1` | admin session | The application API. |
 | `/schema` | none | Interactive OpenAPI docs (Scalar UI). |
 | `/metrics` | none | Prometheus metrics (text exposition). |

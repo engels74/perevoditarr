@@ -135,14 +135,15 @@ load_env_file() {
 		fi
 		value="${value#"${value%%[![:space:]]*}"}"     # ltrim value
 		value="${value%"${value##*[![:space:]]}"}"     # rtrim value
-		# Match core/env.py byte-for-byte (this loader exports values that then
-		# take precedence over the backend's own parse): a quoted value keeps its
-		# inner content and drops a trailing inline comment; an unquoted value has
-		# a ` #` inline comment stripped.
-		if [[ "$value" == \"* || "$value" == \'* ]]; then
-			q="${value:0:1}"
-			rest="${value:1}"
-			[[ "$rest" == *"$q"* ]] && value="${rest%%"$q"*}"
+		# Match core/env.py's _unquote byte-for-byte (this loader exports values
+		# that then take precedence over the backend's own parse): a quoted value
+		# with a closing quote keeps its inner content and drops anything after
+		# that quote. An unquoted value, or an unterminated quote (which _unquote
+		# treats as unquoted), instead has a trailing ` #` inline comment stripped.
+		if [[ "$value" == \"* || "$value" == \'* ]] \
+			&& q="${value:0:1}" rest="${value:1}" \
+			&& [[ "$rest" == *"$q"* ]]; then
+			value="${rest%%"$q"*}"
 		elif [[ "$value" == *" #"* ]]; then
 			value="${value%% #*}"
 			value="${value%"${value##*[![:space:]]}"}"   # rtrim after comment strip

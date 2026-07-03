@@ -150,6 +150,10 @@ activemq-data/
 
 # Environments
 .env
+# …but keep the tracked templates (root + per-service).
+!.env.example
+!backend/.env.example
+!frontend/.env.example
 .envrc
 .venv
 env/

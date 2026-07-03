@@ -38,6 +38,19 @@ Perevoditarr is a monorepo — a Python/Litestar backend and a SvelteKit SPA. In
 development you run both; the SPA dev server proxies `/api` to the backend (this
 also covers the `/api/v1/events` SSE stream used for live updates).
 
+**One command** — start the whole stack (installs deps, migrates, runs both):
+
+```bash
+cp .env.example .env    # optional: edit it first (see below)
+scripts/start.sh        # Ctrl-C stops both; scripts/start.sh --help for options
+```
+
+`start.sh` streams both logs with `[backend]`/`[frontend]` prefixes and tears
+both down on exit. Useful flags: `--backend-only` / `--frontend-only`,
+`--no-install`, `--no-migrate`, `--no-reload`, `--backend-port` / `--frontend-port`.
+
+Prefer to run them yourself in two terminals? The manual steps still work:
+
 **Backend** — serves on `http://localhost:8000`:
 
 ```bash
@@ -60,7 +73,14 @@ create the first administrator account.
 
 ## Environment Variables
 
-All settings use the `PEREVODITARR_` prefix. The most common ones:
+Copy `.env.example` to `.env` and edit. A single `.env` in the repo root is read
+by **both** services — the backend loads it natively (root `.env`, then
+`backend/.env` overrides it) and the frontend's dev server reads it for the proxy
+target and port. Per-folder `backend/.env.example` and `frontend/.env.example`
+are provided for running a service on its own. Real environment variables always
+take precedence over any `.env` file, so production can inject them directly.
+
+All backend settings use the `PEREVODITARR_` prefix. The most common ones:
 
 | Variable | Required | Default | Description |
 |---|---|---|---|

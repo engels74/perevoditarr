@@ -13,7 +13,7 @@ import msgspec
 from advanced_alchemy.exceptions import NotFoundError as AANotFoundError
 from advanced_alchemy.repository import SQLAlchemyAsyncRepository
 from msgspec import UNSET
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from perevoditarr.core.errors import ConflictError, NotFoundError, PerevoditarrError
@@ -243,7 +243,20 @@ class WatchService:
             recent_window_days=window_days,
             frequent_min_plays=frequent_min_plays,
         )
-        _ = await self.session.execute(delete(WatchScore))
+        # Merge, don't full-replace: rewrite only the identities present in this
+        # cycle's signals and leave every other cached row untouched. On a partial
+        # refresh a title fed solely by a now-failing source is absent here, so it
+        # survives to age out via the TTL (ADR-0007) instead of vanishing at once.
+        identities = [
+            (signal.media_type, signal.title_key, signal.year) for signal in signals
+        ]
+        _ = await self.session.execute(
+            delete(WatchScore).where(
+                tuple_(
+                    WatchScore.media_type, WatchScore.title_key, WatchScore.year
+                ).in_(identities)
+            )
+        )
         self.session.add_all(
             [
                 WatchScore(

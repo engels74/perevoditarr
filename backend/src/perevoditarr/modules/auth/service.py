@@ -194,6 +194,12 @@ class AuthService:
         return list(await self.session.scalars(select(User).order_by(User.created_at)))
 
     async def set_role(self, user_id: UUID, role: str) -> User:
+        # Guard at the service layer so this domain invariant does not depend on
+        # every caller pre-validating: the User.role column is a plain String(16)
+        # with no Enum/CheckConstraint, so a bad value would persist silently.
+        # Mirrors _validate_password's "reject bad input before persisting" idiom.
+        if role not in ("admin", "viewer"):
+            raise DomainValidationError("role must be 'admin' or 'viewer'")
         user = await self.session.get(User, user_id)
         if user is None:
             raise NotFoundError("user not found")

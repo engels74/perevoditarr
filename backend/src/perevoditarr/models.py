@@ -5,7 +5,12 @@ so all tables register on the shared metadata. Each module adds its models
 here as they land.
 """
 
-from perevoditarr.modules.auth.models import ApiKey, AuthProviderConfig, User
+from perevoditarr.modules.auth.models import (
+    ApiKey,
+    AppSetupState,
+    AuthProviderConfig,
+    User,
+)
 from perevoditarr.modules.doctor.models import DoctorFinding, DoctorRun
 from perevoditarr.modules.instances.models import BazarrInstance, LingarrInstance
 from perevoditarr.modules.intents.models import (
@@ -40,6 +45,7 @@ from perevoditarr.modules.webhooks.models import WebhookSource
 
 __all__ = [
     "ApiKey",
+    "AppSetupState",
     "AuthProviderConfig",
     "BazarrInstance",
     "DoctorFinding",

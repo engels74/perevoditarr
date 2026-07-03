@@ -1,7 +1,9 @@
 """Auth & first-run setup controllers (P1-T2)."""
 
+from __future__ import annotations
+
 from collections.abc import Sequence
-from typing import Annotated, cast
+from typing import TYPE_CHECKING, Annotated, cast
 from urllib.parse import urlsplit, urlunsplit
 from uuid import UUID
 
@@ -14,8 +16,10 @@ from litestar.security.jwt import Token
 from litestar.status_codes import HTTP_200_OK
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from perevoditarr.core.bootstrap import InvalidBootstrapTokenError
 from perevoditarr.core.errors import DomainValidationError
 from perevoditarr.core.http import HttpClientRegistry
+from perevoditarr.core.logging import get_logger
 from perevoditarr.modules.auth.ldap import ldap_authenticate
 from perevoditarr.modules.auth.models import User
 from perevoditarr.modules.auth.oidc import OIDC_STATE_COOKIE, OidcFlow
@@ -35,6 +39,8 @@ from perevoditarr.modules.auth.schemas import (
     OidcPublicInfo,
     OidcSettingsRead,
     OidcSettingsWrite,
+    SetupChecklist,
+    SetupPhase,
     SetupRequest,
     SetupStatus,
     UserCreateRequest,
@@ -49,10 +55,21 @@ from perevoditarr.modules.auth.security import (
 )
 from perevoditarr.modules.auth.service import AuthService, ProviderConfigService
 
+if TYPE_CHECKING:
+    # Runtime imports of these sibling-module services would pull their package
+    # __init__ chains (notifications -> dispatch -> instances) back through auth
+    # during auth's own early import, creating a cycle. They are injected via
+    # DI at runtime; the app registers them in signature_namespace so Litestar
+    # resolves these forward references when it builds the handler signatures.
+    from perevoditarr.modules.instances.service import InstancesService
+    from perevoditarr.modules.notifications.service import NotificationsService
+
 type UserRequest = Request[User, Token | str, State]
 type SessionAuth = SessionAuthenticator
 
 _OIDC_COOKIE_PATH = "/api/v1/auth/oidc"
+
+_logger = get_logger()
 
 
 def _user_read(user: User) -> UserRead:
@@ -74,13 +91,65 @@ def _callback_uri(request: Request[object, object, State]) -> str:
     )
 
 
+async def _build_setup_status(
+    *,
+    auth_service: AuthService,
+    auth_runtime: AuthRuntime,
+    instances_service: InstancesService,
+    notifications_service: NotificationsService,
+) -> SetupStatus:
+    """Derive the resume state from durable domain facts.
+
+    `phase` is the first unsatisfied REQUIRED step (admin -> bazarr); the
+    optional lingarr/policy/notifications steps never move it away from
+    "finish" once admin + >=1 Bazarr exist. `done` only once completion is
+    the durable, cached fact.
+    """
+    user_count = await auth_service.user_count()
+    bazarr_count = len(await instances_service.list_bazarr())
+    lingarr_count = len(await instances_service.list_lingarr())
+    notification_count = len(await notifications_service.list_routes())
+    completed = await auth_runtime.is_setup_completed()
+    if completed:
+        phase: SetupPhase = "done"
+    elif user_count == 0:
+        phase = "admin"
+    elif bazarr_count == 0:
+        phase = "bazarr"
+    else:
+        phase = "finish"
+    return SetupStatus(
+        required=not completed,
+        bootstrap_required=user_count == 0,
+        completed=completed,
+        phase=phase,
+        checklist=SetupChecklist(
+            has_admin=user_count > 0,
+            bazarr_count=bazarr_count,
+            lingarr_count=lingarr_count,
+            notification_count=notification_count,
+        ),
+    )
+
+
 class SetupController(Controller):
     path: str = "/setup"
     tags: Sequence[str] | None = ("setup",)
 
     @get("/status", exclude_from_auth=True, operation_id="getSetupStatus")
-    async def status(self, auth_service: AuthService) -> SetupStatus:
-        return SetupStatus(required=await auth_service.user_count() == 0)
+    async def status(
+        self,
+        auth_service: AuthService,
+        auth_runtime: AuthRuntime,
+        instances_service: InstancesService,
+        notifications_service: NotificationsService,
+    ) -> SetupStatus:
+        return await _build_setup_status(
+            auth_service=auth_service,
+            auth_runtime=auth_runtime,
+            instances_service=instances_service,
+            notifications_service=notifications_service,
+        )
 
     @post(
         "/",
@@ -95,13 +164,55 @@ class SetupController(Controller):
         auth_runtime: AuthRuntime,
         session_auth: SessionAuth,
     ) -> Response[UserRead]:
+        if not auth_runtime.bootstrap.validate(data.bootstrap_token):
+            raise InvalidBootstrapTokenError(
+                "bootstrap token is missing, incorrect, or expired"
+            )
         user = await auth_service.create_initial_admin(
             username=data.username, password=data.password, email=data.email
         )
-        auth_runtime.mark_setup_completed()
+        auth_runtime.bootstrap.clear()
         return session_auth.login(
             identifier=str(user.id), response_body=_user_read(user)
         )
+
+    @post("/finish", operation_id="finishSetup", guards=[require_admin])
+    async def finish(
+        self,
+        auth_service: AuthService,
+        auth_runtime: AuthRuntime,
+        instances_service: InstancesService,
+        notifications_service: NotificationsService,
+    ) -> SetupStatus:
+        user_count = await auth_service.user_count()
+        bazarr_count = len(await instances_service.list_bazarr())
+        if user_count == 0 or bazarr_count < 1:
+            _logger.warning(
+                "setup finish rejected: prerequisites unmet",
+                user_count=user_count,
+                bazarr_count=bazarr_count,
+            )
+            raise DomainValidationError(
+                "complete the required steps first: create an admin and at least one Bazarr instance"
+            )
+        await auth_service.mark_setup_completed()
+        auth_runtime.mark_setup_completed()
+        # Mirror POST /setup: retire the startup bootstrap token on every
+        # completion path (idempotent when unminted/already cleared).
+        auth_runtime.bootstrap.clear()
+        status = await _build_setup_status(
+            auth_service=auth_service,
+            auth_runtime=auth_runtime,
+            instances_service=instances_service,
+            notifications_service=notifications_service,
+        )
+        _logger.info(
+            "setup completed",
+            bazarr_count=status.checklist.bazarr_count,
+            lingarr_count=status.checklist.lingarr_count,
+            notification_count=status.checklist.notification_count,
+        )
+        return status
 
 
 class AuthController(Controller):

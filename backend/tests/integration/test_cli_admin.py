@@ -17,7 +17,7 @@ from perevoditarr.cli import (
 from perevoditarr.core.db import metadata
 from perevoditarr.core.errors import ConflictError
 from perevoditarr.core.settings import AppSettings
-from perevoditarr.modules.auth.models import User
+from perevoditarr.modules.auth.models import AppSetupState, User
 from perevoditarr.modules.auth.service import AuthService
 
 
@@ -48,6 +48,28 @@ async def test_create_user_rejects_duplicate(session: AsyncSession) -> None:
     _ = await service.create_user(username="ops", password="a-long-password-here")
     with pytest.raises(ConflictError):
         _ = await service.create_user(username="ops", password="another-long-password")
+
+
+async def test_mark_setup_completed_is_idempotent_and_timestamp_stable(
+    session: AsyncSession,
+) -> None:
+    # Regression: mark_setup_completed is an atomic id=1 upsert. Calling it
+    # twice must not raise (a naive read-then-insert would let a concurrent
+    # second INSERT hit the PK unique index -> unhandled IntegrityError/500) and
+    # must leave exactly one row whose completed_at keeps the ORIGINAL timestamp.
+    service = AuthService(session)
+    await service.mark_setup_completed()
+    first = (await session.scalars(select(AppSetupState))).all()
+    assert len(first) == 1
+    original = first[0].completed_at
+    assert original is not None
+
+    await service.mark_setup_completed()  # second call is a no-op, never a 500
+    session.expire_all()  # force a fresh read from the database
+    rows = (await session.scalars(select(AppSetupState))).all()
+    assert len(rows) == 1
+    assert rows[0].id == 1
+    assert rows[0].completed_at == original
 
 
 def test_resolve_password_prefers_cli_arg() -> None:

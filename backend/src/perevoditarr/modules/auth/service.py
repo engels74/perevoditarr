@@ -10,6 +10,8 @@ import msgspec
 from argon2 import PasswordHasher
 from argon2.exceptions import VerificationError, VerifyMismatchError
 from sqlalchemy import func, select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
@@ -21,7 +23,12 @@ from perevoditarr.core.errors import (
 )
 from perevoditarr.core.logging import get_logger
 from perevoditarr.core.security import SecretBox
-from perevoditarr.modules.auth.models import ApiKey, AuthProviderConfig, User
+from perevoditarr.modules.auth.models import (
+    ApiKey,
+    AppSetupState,
+    AuthProviderConfig,
+    User,
+)
 from perevoditarr.modules.auth.schemas import (
     ForwardAuthProviderSettings,
     LdapProviderSettings,
@@ -72,6 +79,39 @@ class AuthService:
     async def user_count(self) -> int:
         result = await self.session.scalar(select(func.count(User.id)))
         return result or 0
+
+    # --- setup state (durable first-run completion flag) -----------------
+
+    async def get_setup_completed(self) -> bool:
+        """True iff the singleton app_setup_state row exists with completed_at set.
+
+        Absence of the row (or a NULL completed_at) means setup is not complete.
+        """
+        row = await self.session.get(AppSetupState, 1)
+        return row is not None and row.completed_at is not None
+
+    async def mark_setup_completed(self) -> None:
+        """Durably mark first-run setup complete (idempotent upsert on id=1).
+
+        A single atomic INSERT ... ON CONFLICT (dialect-portable, mirroring
+        modules/mirror/sync.py::_upsert) so two concurrent /setup/finish calls
+        can't both read "no row", both INSERT id=1, and have the loser raise an
+        unhandled IntegrityError -> 500. The WHERE predicate updates
+        completed_at only while it is still NULL, so an already-completed row
+        keeps its ORIGINAL timestamp (matches the old check-then-act semantics).
+        """
+        dialect = self.session.get_bind().dialect.name
+        insert_fn = pg_insert if dialect == "postgresql" else sqlite_insert
+        statement = insert_fn(AppSetupState).values(
+            id=1, completed_at=datetime.now(UTC)
+        )
+        statement = statement.on_conflict_do_update(
+            index_elements=["id"],
+            set_={"completed_at": statement.excluded["completed_at"]},
+            where=AppSetupState.completed_at.is_(None),
+        )
+        _ = await self.session.execute(statement)
+        await self.session.commit()
 
     async def create_initial_admin(
         self, *, username: str, password: str, email: str | None

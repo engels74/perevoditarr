@@ -3,6 +3,7 @@
 import asyncio
 from collections.abc import Iterator
 from pathlib import Path
+from typing import cast
 
 import pytest
 from litestar import Litestar
@@ -13,6 +14,7 @@ from perevoditarr import models as models  # register all mappers (re-export)
 from perevoditarr.app import create_app
 from perevoditarr.core.db import metadata
 from perevoditarr.core.settings import AppSettings
+from perevoditarr.modules.auth import AuthRuntime
 
 TEST_SECRET = "test-secret-key-0123456789abcdef-0123456789abcdef"  # gitleaks:allow
 ADMIN_USERNAME = "admin"
@@ -61,6 +63,20 @@ def client(app: Litestar) -> Iterator[TestClient[Litestar]]:
         yield test_client
 
 
+def client_auth_runtime(client: TestClient[Litestar]) -> AuthRuntime:
+    """Reach the app's AuthRuntime through the test client (typed once here)."""
+    runtime = cast(Litestar, client.app).state.get("auth_runtime")
+    assert isinstance(runtime, AuthRuntime)
+    return runtime
+
+
+def bootstrap_token(client: TestClient[Litestar]) -> str:
+    """Return the in-memory first-run bootstrap token minted at startup."""
+    token = client_auth_runtime(client).bootstrap.current_token()
+    assert token is not None, "bootstrap token was not issued at startup"
+    return token
+
+
 def complete_setup(
     client: TestClient[Litestar],
     *,
@@ -68,9 +84,20 @@ def complete_setup(
     password: str = ADMIN_PASSWORD,
 ) -> None:
     response = client.post(
-        "/api/v1/setup", json={"username": username, "password": password}
+        "/api/v1/setup",
+        json={
+            "username": username,
+            "password": password,
+            "bootstrapToken": bootstrap_token(client),
+        },
     )
     assert response.status_code == 200, response.text
+    # POST /api/v1/setup only creates the initial admin now; it no longer marks
+    # first-run setup complete (that is POST /api/v1/setup/finish, which needs a
+    # Bazarr instance). Existing integration suites just need the gate OPEN, so
+    # flip the in-memory AuthRuntime cache: is_setup_completed() then
+    # short-circuits True for this app instance (tests reuse one app).
+    client_auth_runtime(client).mark_setup_completed()
 
 
 def csrf_headers(client: TestClient[Litestar]) -> dict[str, str]:

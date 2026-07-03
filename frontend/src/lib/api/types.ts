@@ -6,6 +6,7 @@ import type { components } from './types.gen';
 type Schemas = components['schemas'];
 
 export type SetupStatus = Schemas['SetupStatus'];
+export type SetupChecklist = Schemas['SetupChecklist'];
 export type UserRead = Schemas['UserRead'];
 export type LoginProviders = Schemas['LoginProviders'];
 export type OidcPublicInfo = Schemas['OidcPublicInfo'];

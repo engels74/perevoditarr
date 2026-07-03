@@ -18,6 +18,41 @@ function jsonResponse(body: unknown, status = 200): Response {
 	});
 }
 
+type Phase = 'admin' | 'bazarr' | 'lingarr' | 'policy' | 'notifications' | 'finish' | 'done';
+
+function statusBody(
+	phase: Phase,
+	checklist: Partial<{
+		hasAdmin: boolean;
+		bazarrCount: number;
+		lingarrCount: number;
+		notificationCount: number;
+	}> = {}
+): Record<string, unknown> {
+	return {
+		required: phase !== 'done',
+		bootstrapRequired: phase === 'admin',
+		completed: phase === 'done',
+		phase,
+		checklist: {
+			hasAdmin: phase !== 'admin',
+			bazarrCount: 0,
+			lingarrCount: 0,
+			notificationCount: 0,
+			...checklist
+		}
+	};
+}
+
+function sequence(responses: (() => Response)[]): () => Response {
+	let index = 0;
+	return () => {
+		const next = responses[Math.min(index, responses.length - 1)];
+		index += 1;
+		return next();
+	};
+}
+
 function fetchStub(routes: Record<string, () => Response>): FetchLike {
 	return ((input: RequestInfo | URL, init?: RequestInit) => {
 		const key = `${(init?.method ?? 'GET').toUpperCase()} ${String(input)}`;
@@ -33,7 +68,7 @@ describe('session state', () => {
 	test('initialize surfaces first-run setup', async () => {
 		const state = createSessionState(
 			fetchStub({
-				'GET /api/v1/setup/status': () => jsonResponse({ required: true })
+				'GET /api/v1/setup/status': () => jsonResponse(statusBody('admin'))
 			})
 		);
 		await state.initialize();
@@ -46,7 +81,7 @@ describe('session state', () => {
 	test('initialize restores an existing session', async () => {
 		const state = createSessionState(
 			fetchStub({
-				'GET /api/v1/setup/status': () => jsonResponse({ required: false }),
+				'GET /api/v1/setup/status': () => jsonResponse(statusBody('done')),
 				'GET /api/v1/auth/me': () => jsonResponse(USER)
 			})
 		);
@@ -58,7 +93,7 @@ describe('session state', () => {
 	test('initialize treats 401 as signed-out, not an error', async () => {
 		const state = createSessionState(
 			fetchStub({
-				'GET /api/v1/setup/status': () => jsonResponse({ required: false }),
+				'GET /api/v1/setup/status': () => jsonResponse(statusBody('done')),
 				'GET /api/v1/auth/me': () =>
 					jsonResponse({ status: 401, code: 'unauthorized', title: 'Unauthorized' }, 401)
 			})
@@ -107,17 +142,114 @@ describe('session state', () => {
 		expect(state.user).toBeNull();
 	});
 
-	test('completeSetup signs in the new admin', async () => {
+	test('initialize stores phase and checklist', async () => {
 		const state = createSessionState(
 			fetchStub({
-				'GET /api/v1/setup/status': () => jsonResponse({ required: true }),
-				'POST /api/v1/setup': () => jsonResponse(USER)
+				'GET /api/v1/setup/status': () =>
+					jsonResponse(statusBody('bazarr', { hasAdmin: true, bazarrCount: 0 })),
+				// An admin exists (bootstrap done), so initialize now probes /auth/me;
+				// nobody is signed in yet during the wizard, so it 401s.
+				'GET /api/v1/auth/me': () =>
+					jsonResponse({ status: 401, code: 'unauthorized', title: 'Unauthorized' }, 401)
 			})
 		);
 		await state.initialize();
 		expect(state.setupRequired).toBe(true);
-		expect(await state.completeSetup({ username: 'admin', password: 'long-enough-pw' })).toBe(true);
-		expect(state.setupRequired).toBe(false);
+		expect(state.user).toBeNull();
+		expect(state.setupPhase).toBe('bazarr');
+		expect(state.setupChecklist?.hasAdmin).toBe(true);
+		expect(state.setupChecklist?.bazarrCount).toBe(0);
+	});
+
+	test('initialize restores the admin session mid-setup (before finish)', async () => {
+		const state = createSessionState(
+			fetchStub({
+				'GET /api/v1/setup/status': () =>
+					jsonResponse(statusBody('finish', { hasAdmin: true, bazarrCount: 1 })),
+				'GET /api/v1/auth/me': () => jsonResponse(USER)
+			})
+		);
+		await state.initialize();
+		// Setup is not finished, but an admin exists and holds a valid session
+		// cookie: /auth/me must run so finishing the wizard doesn't bounce to /login.
+		expect(state.setupRequired).toBe(true);
 		expect(state.user?.username).toBe('admin');
+		expect(state.error).toBeNull();
+	});
+
+	test('completeSetup creates the admin and advances the wizard', async () => {
+		const state = createSessionState(
+			fetchStub({
+				'GET /api/v1/setup/status': sequence([
+					() => jsonResponse(statusBody('admin')),
+					() => jsonResponse(statusBody('bazarr', { hasAdmin: true }))
+				]),
+				'POST /api/v1/setup': () => jsonResponse(USER)
+			})
+		);
+		await state.initialize();
+		expect(state.setupPhase).toBe('admin');
+		expect(
+			await state.completeSetup({
+				username: 'admin',
+				password: 'long-enough-pw',
+				bootstrapToken: 'abcd-efgh-ijkl'
+			})
+		).toBe(true);
+		// Admin creation keeps setup required; refreshSetup advances the phase.
+		expect(state.setupRequired).toBe(true);
+		expect(state.setupPhase).toBe('bazarr');
+		expect(state.user?.username).toBe('admin');
+	});
+
+	test('refreshSetup updates phase and checklist', async () => {
+		const state = createSessionState(
+			fetchStub({
+				'GET /api/v1/setup/status': () =>
+					jsonResponse(statusBody('finish', { hasAdmin: true, bazarrCount: 2 }))
+			})
+		);
+		await state.refreshSetup();
+		expect(state.setupPhase).toBe('finish');
+		expect(state.setupChecklist?.bazarrCount).toBe(2);
+		expect(state.setupRequired).toBe(true);
+	});
+
+	test('finishSetup flips setupRequired to false', async () => {
+		const state = createSessionState(
+			fetchStub({
+				'POST /api/v1/setup/finish': () =>
+					jsonResponse(statusBody('done', { hasAdmin: true, bazarrCount: 1 }))
+			})
+		);
+		expect(await state.finishSetup()).toBe(true);
+		expect(state.setupRequired).toBe(false);
+		expect(state.setupPhase).toBe('done');
+	});
+
+	test('skip-through flow reaches completion', async () => {
+		const state = createSessionState(
+			fetchStub({
+				'GET /api/v1/setup/status': sequence([
+					() => jsonResponse(statusBody('admin')),
+					() => jsonResponse(statusBody('finish', { hasAdmin: true, bazarrCount: 1 }))
+				]),
+				'POST /api/v1/setup': () => jsonResponse(USER),
+				'POST /api/v1/setup/finish': () =>
+					jsonResponse(statusBody('done', { hasAdmin: true, bazarrCount: 1 }))
+			})
+		);
+		await state.initialize();
+		expect(state.setupPhase).toBe('admin');
+		await state.completeSetup({
+			username: 'admin',
+			password: 'long-enough-pw',
+			bootstrapToken: 'abcd-efgh-ijkl'
+		});
+		// Status now reports the finish phase (admin + a bazarr already present).
+		expect(state.setupPhase).toBe('finish');
+		expect(await state.finishSetup()).toBe(true);
+		expect(state.setupRequired).toBe(false);
+		expect(state.setupPhase).toBe('done');
 	});
 });

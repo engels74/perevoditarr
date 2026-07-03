@@ -3,7 +3,8 @@
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import DateTime, ForeignKey, LargeBinary, String
+from advanced_alchemy.base import DefaultBase
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, LargeBinary, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from perevoditarr.core.db import UUIDAuditBase
@@ -54,3 +55,20 @@ class AuthProviderConfig(UUIDAuditBase):
     enabled: Mapped[bool] = mapped_column(default=False)
     # Full provider settings struct, Fernet-encrypted (client secrets live here).
     settings_encrypted: Mapped[bytes | None] = mapped_column(LargeBinary)
+
+
+class AppSetupState(DefaultBase):
+    """Single fixed row (id=1) recording first-run completion as a durable fact.
+
+    `completed` is derived as `completed_at IS NOT NULL`. The row is never
+    autoseeded — its absence means setup is not complete. The named CHECK plus
+    the id=1-targeted upsert keep this a true singleton on SQLite and Postgres.
+    """
+
+    __tablename__: str | None = "app_setup_state"
+    __table_args__: tuple[CheckConstraint, ...] = (
+        CheckConstraint("id = 1", name="singleton"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=False)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

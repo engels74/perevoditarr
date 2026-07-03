@@ -12,17 +12,35 @@ Username = Annotated[
     str, msgspec.Meta(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9._@-]+$")
 ]
 Password = Annotated[str, msgspec.Meta(min_length=10, max_length=256)]
+BootstrapToken = Annotated[str, msgspec.Meta(min_length=1, max_length=64)]
 
 type UserRole = Literal["admin", "viewer"]
 
 
+type SetupPhase = Literal[
+    "admin", "bazarr", "lingarr", "policy", "notifications", "finish", "done"
+]
+
+
+class SetupChecklist(ApiStruct):
+    has_admin: bool
+    bazarr_count: int
+    lingarr_count: int
+    notification_count: int
+
+
 class SetupStatus(ApiStruct):
     required: bool
+    bootstrap_required: bool
+    completed: bool
+    phase: SetupPhase
+    checklist: SetupChecklist
 
 
 class SetupRequest(ApiRequest):
     username: Username
     password: Password
+    bootstrap_token: BootstrapToken
     email: str | None = None
 
 

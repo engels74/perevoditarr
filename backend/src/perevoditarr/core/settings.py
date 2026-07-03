@@ -55,6 +55,15 @@ class AppSettings(msgspec.Struct, kw_only=True, frozen=True):
     stats_rollup_interval_seconds: int = 900
     # Budget reconciliation (P4-T1): pull Lingarr statistics into rolling actuals.
     budget_reconcile_interval_seconds: int = 3600
+    # Watch-aware priority (P5-T1, FR-Q5): how often to rebuild the score cache
+    # (0 disables the loop and the whole watch-boost feature), how long a cached
+    # score stays trusted, the recency window, the frequent-play threshold, and
+    # the per-source activity fetch cap.
+    watch_refresh_interval_seconds: int = 3600
+    watch_score_ttl_seconds: int = 86400
+    watch_recent_window_days: int = 14
+    watch_frequent_min_plays: int = 3
+    watch_activity_limit: int = 1000
 
 
 _FIELD_NAMES = frozenset(field.name for field in msgspec.structs.fields(AppSettings))
@@ -111,6 +120,7 @@ def _validate(settings: AppSettings) -> None:
         "telemetry_poll_interval_seconds",
         "stats_rollup_interval_seconds",
         "budget_reconcile_interval_seconds",
+        "watch_refresh_interval_seconds",
     ):
         if getattr(settings, field_name) < 0:
             raise SettingsError(
@@ -122,6 +132,10 @@ def _validate(settings: AppSettings) -> None:
         "dispatch_max_attempts",
         "dispatch_retry_base_seconds",
         "dispatch_retry_cap_seconds",
+        "watch_score_ttl_seconds",
+        "watch_recent_window_days",
+        "watch_frequent_min_plays",
+        "watch_activity_limit",
     ):
         if getattr(settings, positive_field) < 1:
             raise SettingsError(f"{ENV_PREFIX}{positive_field.upper()} must be >= 1")

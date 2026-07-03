@@ -9,11 +9,15 @@ from typing import ClassVar, override
 from uuid import UUID
 
 from advanced_alchemy.extensions.litestar import SQLAlchemyAsyncConfig
-from litestar import Response
+from litestar import Request, Response
 from litestar.connection import ASGIConnection
 from litestar.datastructures import State
 from litestar.enums import ScopeType
-from litestar.exceptions import NotAuthorizedException, PermissionDeniedException
+from litestar.exceptions import (
+    ImproperlyConfiguredException,
+    NotAuthorizedException,
+    PermissionDeniedException,
+)
 from litestar.handlers.base import BaseRouteHandler
 from litestar.middleware.authentication import AuthenticationResult
 from litestar.middleware.csrf import CSRFMiddleware
@@ -34,6 +38,7 @@ from perevoditarr.core.settings import AppSettings
 from perevoditarr.modules.auth.models import User
 from perevoditarr.modules.auth.schemas import (
     ForwardAuthProviderSettings,
+    LdapProviderSettings,
     OidcProviderSettings,
 )
 from perevoditarr.modules.auth.service import AuthService, ProviderConfigService
@@ -69,6 +74,7 @@ class AuthRuntime:
         )
         self.forward_auth: ForwardAuthProviderSettings | None = None
         self.oidc: OidcProviderSettings | None = None
+        self.ldap: LdapProviderSettings | None = None
         self._setup_completed: bool = False
 
     async def refresh_providers(self) -> None:
@@ -76,6 +82,7 @@ class AuthRuntime:
             service = ProviderConfigService(session, self.secret_box)
             self.oidc = await service.load_oidc()
             self.forward_auth = await service.load_forward_auth()
+            self.ldap = await service.load_ldap()
 
     async def is_setup_completed(self) -> bool:
         if self._setup_completed:
@@ -247,3 +254,32 @@ def require_admin(connection: _AnyConnection, _: BaseRouteHandler) -> None:
     user: object = connection.user
     if not isinstance(user, User) or not user.is_admin:
         raise PermissionDeniedException("administrator access required")
+
+
+# HTTP methods that never mutate state — always allowed for viewers.
+_SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
+
+
+def enforce_role(connection: _AnyConnection, handler: BaseRouteHandler) -> None:
+    """Router-level role gate (FR-A6, ADR-0008).
+
+    Viewers may read anything and manage their own session; any other method is
+    denied unless the handler opts in with `opt={"viewer_write": True}`.
+    Unauthenticated handlers (setup/login/webhook ingestion) set no scope user,
+    so this is a no-op for them — their own exclusions still apply.
+    """
+    try:
+        user: object = connection.user
+    except ImproperlyConfiguredException:
+        # Unauthenticated handler (setup/login/webhook ingestion): no user in
+        # scope — nothing to gate here.
+        return
+    if not isinstance(user, User) or user.role != "viewer":
+        return
+    if not isinstance(connection, Request):
+        return  # non-HTTP (e.g. websocket handshake) — not a domain write
+    if connection.method in _SAFE_METHODS:
+        return
+    if handler.opt.get("viewer_write") is True:
+        return
+    raise PermissionDeniedException("viewers have read-only access")

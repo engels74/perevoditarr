@@ -37,6 +37,7 @@ from perevoditarr.modules.intents.state_machine import TERMINAL_STATES, IntentSt
 from perevoditarr.modules.intents.trace import (
     PriorityAssigned,
     TraceStep,
+    WatchBoosted,
     Withdrawn,
     decode_trace,
     encode_trace,
@@ -60,6 +61,11 @@ from perevoditarr.modules.policy import (
     ScoreFacts,
     resolve_effective_policy,
     score_intent,
+)
+from perevoditarr.modules.watch import (
+    WATCH_SCORE_TTL_SECONDS,
+    WatchScoreIndex,
+    load_watch_index,
 )
 
 _logger = get_logger()
@@ -164,11 +170,17 @@ class DiscoveryService:
         secret_box: SecretBox,
         gateway: InstanceGateway,
         sse_bus: SseBus,
+        *,
+        watch_ttl_seconds: int = WATCH_SCORE_TTL_SECONDS,
     ) -> None:
         self.session: AsyncSession = session
         self.sse_bus: SseBus = sse_bus
         self.policy: PolicyService = PolicyService(session, secret_box, gateway)
         self.intents: IntentsService = IntentsService(session)
+        self._watch_ttl_seconds: int = watch_ttl_seconds
+        # Loaded per run from the durable score cache (P5-T1); empty until then
+        # so scoring is unaffected when no watch source is configured.
+        self._watch_index: WatchScoreIndex = WatchScoreIndex()
 
     async def run_for_instance(
         self, instance_id: UUID, *, now: datetime | None = None
@@ -177,6 +189,9 @@ class DiscoveryService:
         cascade = await self.policy.cascade_input(instance_id)
         exclusions = await self.policy.exclusion_rules(instance_id)
         summary = DiscoveryRunSummary(bazarr_instance_id=instance_id)
+        self._watch_index = await load_watch_index(
+            self.session, ttl_seconds=self._watch_ttl_seconds, now=moment
+        )
 
         await self._discover_episodes(instance_id, cascade, exclusions, moment, summary)
         await self._discover_movies(instance_id, cascade, exclusions, moment, summary)
@@ -461,9 +476,8 @@ class DiscoveryService:
                     # surfaced here so it is never silent.
                     reappeared += 1
                     continue
-                breakdown = score_intent(
-                    _score_facts(candidate), policy.priority_weights.value, now=now
-                )
+                facts = _score_facts(candidate, self._watch_index)
+                breakdown = score_intent(facts, policy.priority_weights.value, now=now)
                 if (
                     row is not None
                     and IntentState(row.state) is not IntentState.DISCOVERED
@@ -479,11 +493,14 @@ class DiscoveryService:
                         row.priority = breakdown.total
                         row.decision_trace = encode_trace(
                             _with_priority_step(
-                                decode_trace(row.decision_trace), breakdown, policy
+                                decode_trace(row.decision_trace),
+                                facts,
+                                breakdown,
+                                policy,
                             )
                         )
                     continue
-                seed = _seed(candidate, decision, breakdown, policy)
+                seed = _seed(candidate, decision, facts, breakdown, policy)
                 intent, was_created = await self.intents.upsert(
                     seed, existing_row=row, skip_lookup=True, commit=False
                 )
@@ -720,13 +737,37 @@ def _identity(candidate: WantedCandidate) -> tuple[str, int, str, bool, bool]:
     )
 
 
-def _score_facts(candidate: WantedCandidate) -> ScoreFacts:
+def _score_facts(
+    candidate: WantedCandidate, watch_index: WatchScoreIndex
+) -> ScoreFacts:
+    is_episode = isinstance(candidate.item, EpisodeRef)
+    # §6.5 identity: shows match on title, movies on title (year optional here —
+    # the mirror candidate carries no year, so the index falls back to title).
+    signal = watch_index.signal_for(
+        "show" if is_episode else "movie", candidate.display_title
+    )
     return ScoreFacts(
-        media_type="episode" if isinstance(candidate.item, EpisodeRef) else "movie",
+        media_type="episode" if is_episode else "movie",
         monitored=candidate.item.monitored,
         recency_anchor=recency_anchor(candidate),
         series_ended=candidate.series_ended,
+        watch=signal,
     )
+
+
+def _watch_step(facts: ScoreFacts, breakdown: ScoreBreakdown) -> WatchBoosted | None:
+    signal = facts.watch
+    points = breakdown.components.get("watch", 0)
+    if signal is None or points <= 0:
+        return None
+    reasons: list[str] = []
+    if signal.watched_recently:
+        reasons.append("watched recently")
+    if signal.watched_frequently:
+        reasons.append("watched frequently")
+    if signal.watchlisted:
+        reasons.append("watchlisted")
+    return WatchBoosted(points=points, reasons=tuple(reasons), sources=signal.sources)
 
 
 def _priority_step(
@@ -740,20 +781,31 @@ def _priority_step(
 
 
 def _with_priority_step(
-    steps: tuple[TraceStep, ...], breakdown: ScoreBreakdown, policy: EffectivePolicy
+    steps: tuple[TraceStep, ...],
+    facts: ScoreFacts,
+    breakdown: ScoreBreakdown,
+    policy: EffectivePolicy,
 ) -> tuple[TraceStep, ...]:
-    kept = tuple(step for step in steps if not isinstance(step, PriorityAssigned))
-    return (*kept, _priority_step(breakdown, policy))
+    kept = tuple(
+        step for step in steps if not isinstance(step, PriorityAssigned | WatchBoosted)
+    )
+    watch = _watch_step(facts, breakdown)
+    watch_steps: tuple[TraceStep, ...] = (watch,) if watch is not None else ()
+    return (*kept, *watch_steps, _priority_step(breakdown, policy))
 
 
 def _seed(
     candidate: WantedCandidate,
     decision: Planned,
+    facts: ScoreFacts,
     breakdown: ScoreBreakdown,
     policy: EffectivePolicy,
 ) -> IntentSeed:
+    watch = _watch_step(facts, breakdown)
+    watch_steps: tuple[TraceStep, ...] = (watch,) if watch is not None else ()
     trace: tuple[TraceStep, ...] = (
         *decision.trace,
+        *watch_steps,
         _priority_step(breakdown, policy),
     )
     if isinstance(candidate.item, EpisodeRef):

@@ -61,6 +61,15 @@ class PriorityAssigned(
     weights_layer: str | None = None
 
 
+class WatchBoosted(msgspec.Struct, tag="watch_boosted", kw_only=True, frozen=True):
+    # Watch-aware priority boost (P5-T1, FR-Q5/FR-X2). Recorded before
+    # PriorityAssigned so the trace reads "…watched recently (Tautulli) →
+    # priority 55" (ADR-0007).
+    points: int
+    reasons: tuple[str, ...] = ()  # e.g. "watched recently", "watchlisted"
+    sources: tuple[str, ...] = ()  # contributing source names
+
+
 class Withdrawn(msgspec.Struct, tag="withdrawn", kw_only=True, frozen=True):
     reason: str
 
@@ -88,6 +97,7 @@ type TraceStep = (
     | GraceEvaluated
     | SkipEvaluated
     | ExclusionMatched
+    | WatchBoosted
     | PriorityAssigned
     | Withdrawn
     | EvidenceObserved
@@ -124,6 +134,10 @@ def render_step(step: TraceStep) -> str:
             return "no skip condition"
         case ExclusionMatched(kind=kind, rule_key=rule_key):
             return f"excluded by {kind} rule `{rule_key}`"
+        case WatchBoosted(points=points, reasons=reasons, sources=sources):
+            why = ", ".join(reasons) or "watch activity"
+            where = f" ({', '.join(sources)})" if sources else ""
+            return f"+{points} priority: {why}{where}"
         case PriorityAssigned(score=score):
             return f"priority {score}"
         case Withdrawn(reason=reason):

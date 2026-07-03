@@ -6,7 +6,7 @@ static SPA with an index.html fallback (ADR-0004).
 """
 
 import asyncio
-from collections.abc import AsyncGenerator, Callable
+from collections.abc import AsyncGenerator, Awaitable, Callable
 from contextlib import asynccontextmanager, suppress
 from importlib.metadata import version
 from pathlib import Path
@@ -48,7 +48,9 @@ from perevoditarr.modules.auth import (
     AuthRuntime,
     SessionAuthenticator,
     SetupController,
+    UsersController,
     build_jwt_auth,
+    enforce_role,
     provide_auth_service,
     provide_provider_service,
     setup_gate_middleware,
@@ -71,6 +73,7 @@ from perevoditarr.modules.doctor import (
 from perevoditarr.modules.instances import (
     InstanceGateway,
     InstancesController,
+    InstancesService,
     health_monitor_loop,
     provide_gateway,
     provide_instances_service,
@@ -90,6 +93,7 @@ from perevoditarr.modules.intents import (
 )
 from perevoditarr.modules.mirror import (
     MirrorController,
+    MirrorSyncService,
     WantedSyncCompleted,
     library_sync_loop,
     provide_mirror_service,
@@ -120,6 +124,19 @@ from perevoditarr.modules.telemetry import (
     TelemetryHealthRegistry,
     provide_telemetry_health_service,
     telemetry_loop,
+)
+from perevoditarr.modules.watch import (
+    WatchController,
+    WatchGateway,
+    provide_watch_gateway,
+    provide_watch_service,
+    watch_refresh_loop,
+)
+from perevoditarr.modules.webhooks import (
+    WebhookController,
+    WebhookRuntime,
+    provide_webhook_runtime,
+    provide_webhook_service,
 )
 
 SPA_DIR_ENV = "PEREVODITARR_SPA_DIR"
@@ -238,6 +255,7 @@ def create_app(settings: AppSettings | None = None) -> Litestar:
             "^/api/v1/setup",
             "^/api/v1/auth/login$",
             "^/api/v1/auth/oidc",
+            "^/api/v1/webhooks/ingest",
             "^/schema",
         ],
     )
@@ -253,6 +271,9 @@ def create_app(settings: AppSettings | None = None) -> Litestar:
     # bridge + re-observation nudge are built inside the lifespan (they need the
     # resolved gateway).
     telemetry_health = TelemetryHealthRegistry()
+    # Webhook ingestion (P5-T3): process-singleton coalescer; its sync trigger
+    # is wired in the lifespan once the gateway exists.
+    webhook_runtime = WebhookRuntime()
 
     def _make_telemetry_bridge(gateway: InstanceGateway) -> TelemetryBridge:
         async def nudge(instance_id: UUID) -> None:
@@ -294,6 +315,7 @@ def create_app(settings: AppSettings | None = None) -> Litestar:
                 sse_bus,
                 instance_id=instance_id,
                 locks=instance_locks,
+                watch_ttl_seconds=resolved.watch_score_ttl_seconds,
             )
             await run_reconciliation(
                 alchemy_config,
@@ -335,10 +357,28 @@ def create_app(settings: AppSettings | None = None) -> Litestar:
     def provide_wanted_sync_hook(state: State) -> WantedSyncCompleted:
         return _make_wanted_sync_hook(provide_gateway(state))
 
+    def _make_webhook_trigger(
+        gateway: InstanceGateway,
+    ) -> Callable[[UUID], Awaitable[None]]:
+        # A webhook is a discovery trigger (FR-X4): sync the wanted list for the
+        # instance, which on completion fans out into discovery/reconcile/verify/
+        # dispatch via the same idempotent hook the polling loop uses — so
+        # webhook- and polling-sourced discovery can never duplicate intents.
+        hook = _make_wanted_sync_hook(gateway)
+
+        async def trigger(instance_id: UUID) -> None:
+            async with alchemy_config.get_session() as session:
+                instances = InstancesService(session, secret_box)
+                sync = MirrorSyncService(session, instances, gateway, sse_bus, hook)
+                _ = await sync.sync_wanted(instance_id)
+
+        return trigger
+
     @asynccontextmanager
     async def _background_loops_lifespan(app: Litestar) -> AsyncGenerator[None]:
         tasks: list[asyncio.Task[None]] = []
         gateway = provide_gateway(app.state)
+        webhook_runtime.set_trigger(_make_webhook_trigger(gateway))
         # Startup re-observation (FR-R4): one full reconciliation pass before
         # the periodic loops take over — crash safety is re-observation, never
         # volatile state. Unreachable instances log and skip inside; anything
@@ -443,6 +483,7 @@ def create_app(settings: AppSettings | None = None) -> Litestar:
                         sse_bus,
                         resolved.discovery_interval_seconds,
                         locks=instance_locks,
+                        watch_ttl_seconds=resolved.watch_score_ttl_seconds,
                     )
                 )
             )
@@ -529,6 +570,20 @@ def create_app(settings: AppSettings | None = None) -> Litestar:
                     )
                 )
             )
+        if resolved.watch_refresh_interval_seconds > 0:
+            tasks.append(
+                asyncio.create_task(
+                    watch_refresh_loop(
+                        alchemy_config,
+                        WatchGateway(provide_http(app.state)),
+                        secret_box,
+                        resolved.watch_refresh_interval_seconds,
+                        window_days=resolved.watch_recent_window_days,
+                        frequent_min_plays=resolved.watch_frequent_min_plays,
+                        activity_limit=resolved.watch_activity_limit,
+                    )
+                )
+            )
         try:
             yield
         finally:
@@ -605,6 +660,9 @@ def create_app(settings: AppSettings | None = None) -> Litestar:
 
     api_v1 = Router(
         path="/api/v1",
+        # Global role gate (FR-A6, ADR-0008): viewers get read-only access;
+        # unauthenticated handlers are a no-op inside the guard.
+        guards=[enforce_role],
         route_handlers=[
             health,
             hello,
@@ -612,6 +670,7 @@ def create_app(settings: AppSettings | None = None) -> Litestar:
             sse_events,
             SetupController,
             AuthController,
+            UsersController,
             InstancesController,
             MirrorController,
             DoctorController,
@@ -623,6 +682,8 @@ def create_app(settings: AppSettings | None = None) -> Litestar:
             NotificationsController,
             TelemetryController,
             StatsController,
+            WatchController,
+            WebhookController,
         ],
     )
     route_handlers: list[ControllerRouterHandler] = [api_v1, metrics_endpoint]
@@ -695,6 +756,10 @@ def create_app(settings: AppSettings | None = None) -> Litestar:
             "stats_service": Provide(provide_stats_service),
             "timeline_service": Provide(provide_timeline_service),
             "passthrough_service": Provide(provide_passthrough_service),
+            "watch_gateway": Provide(provide_watch_gateway, sync_to_thread=False),
+            "watch_service": Provide(provide_watch_service),
+            "webhook_service": Provide(provide_webhook_service),
+            "webhook_runtime": Provide(provide_webhook_runtime, sync_to_thread=False),
         },
         openapi_config=OpenAPIConfig(
             title="Perevoditarr API",
@@ -704,7 +769,12 @@ def create_app(settings: AppSettings | None = None) -> Litestar:
         ),
         exception_handlers=exception_handlers,
         state=State(
-            {"sse_bus": sse_bus, "settings": resolved, "auth_runtime": auth_runtime}
+            {
+                "sse_bus": sse_bus,
+                "settings": resolved,
+                "auth_runtime": auth_runtime,
+                "webhook_runtime": webhook_runtime,
+            }
         ),
     )
 

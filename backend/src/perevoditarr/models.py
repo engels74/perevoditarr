@@ -35,6 +35,8 @@ from perevoditarr.modules.stats.models import (
     StatsDaily,
     StatsLanguageDaily,
 )
+from perevoditarr.modules.watch.models import WatchScore, WatchSource
+from perevoditarr.modules.webhooks.models import WebhookSource
 
 __all__ = [
     "ApiKey",
@@ -63,4 +65,7 @@ __all__ = [
     "TranslationProfile",
     "User",
     "WantedSubtitle",
+    "WatchScore",
+    "WatchSource",
+    "WebhookSource",
 ]

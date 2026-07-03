@@ -24,6 +24,7 @@ from perevoditarr.core.security import SecretBox
 from perevoditarr.modules.auth.models import ApiKey, AuthProviderConfig, User
 from perevoditarr.modules.auth.schemas import (
     ForwardAuthProviderSettings,
+    LdapProviderSettings,
     OidcProviderSettings,
     Password,
 )
@@ -37,6 +38,7 @@ _API_KEY_PREFIX_LEN = 12
 
 OIDC_PROVIDER = "oidc"
 FORWARD_AUTH_PROVIDER = "forward_auth"
+LDAP_PROVIDER = "ldap"
 
 
 def _hash_api_key(raw: str) -> str:
@@ -82,7 +84,7 @@ class AuthService:
             username=username,
             email=email,
             password_hash=password_hash,
-            is_admin=True,
+            role="admin",
         )
         self.session.add(user)
         await self.session.commit()
@@ -94,7 +96,7 @@ class AuthService:
         username: str,
         password: str,
         email: str | None = None,
-        is_admin: bool = True,
+        role: str = "admin",
     ) -> User:
         """Create a user (admin CLI, P4-T3). Unlike create_initial_admin this has
         no first-run guard, but it still rejects a duplicate username."""
@@ -109,7 +111,7 @@ class AuthService:
             username=username,
             email=email,
             password_hash=password_hash,
-            is_admin=is_admin,
+            role=role,
         )
         self.session.add(user)
         await self.session.commit()
@@ -178,11 +180,51 @@ class AuthService:
             email=email,
             password_hash=None,
             oidc_subject=oidc_subject,
-            is_admin=await self.user_count() == 0,
+            # First externally-provisioned user bootstraps as admin; later ones
+            # default to viewer, safe-by-default (ADR-0008).
+            role="admin" if await self.user_count() == 0 else "viewer",
         )
         self.session.add(user)
         await self.session.commit()
         return user
+
+    # --- user management (admin, FR-A6) ---------------------------------
+
+    async def list_users(self) -> list[User]:
+        return list(await self.session.scalars(select(User).order_by(User.created_at)))
+
+    async def set_role(self, user_id: UUID, role: str) -> User:
+        # Guard at the service layer so this domain invariant does not depend on
+        # every caller pre-validating: the User.role column is a plain String(16)
+        # with no Enum/CheckConstraint, so a bad value would persist silently.
+        # Mirrors _validate_password's "reject bad input before persisting" idiom.
+        if role not in ("admin", "viewer"):
+            raise DomainValidationError("role must be 'admin' or 'viewer'")
+        user = await self.session.get(User, user_id)
+        if user is None:
+            raise NotFoundError("user not found")
+        if user.role == "admin" and role != "admin" and await self._admin_count() <= 1:
+            raise ConflictError("cannot demote the last remaining admin")
+        user.role = role
+        await self.session.commit()
+        return user
+
+    async def delete_user(self, user_id: UUID, *, actor_id: UUID | None = None) -> None:
+        user = await self.session.get(User, user_id)
+        if user is None:
+            raise NotFoundError("user not found")
+        if actor_id is not None and user.id == actor_id:
+            raise ConflictError("cannot delete your own account")
+        if user.role == "admin" and await self._admin_count() <= 1:
+            raise ConflictError("cannot delete the last remaining admin")
+        await self.session.delete(user)
+        await self.session.commit()
+
+    async def _admin_count(self) -> int:
+        result = await self.session.scalar(
+            select(func.count(User.id)).where(User.role == "admin")
+        )
+        return result or 0
 
     # --- API keys --------------------------------------------------------
 
@@ -283,6 +325,20 @@ class ProviderConfigService:
     async def store_forward_auth(self, settings: ForwardAuthProviderSettings) -> None:
         await self._store(
             FORWARD_AUTH_PROVIDER, msgspec.json.encode(settings), settings.enabled
+        )
+
+    async def load_ldap(self) -> LdapProviderSettings | None:
+        row = await self._row(LDAP_PROVIDER)
+        if row is None or row.settings_encrypted is None:
+            return None
+        return msgspec.json.decode(
+            self.secret_box.decrypt(row.settings_encrypted),
+            type=LdapProviderSettings,
+        )
+
+    async def store_ldap(self, settings: LdapProviderSettings) -> None:
+        await self._store(
+            LDAP_PROVIDER, msgspec.json.encode(settings), settings.enabled
         )
 
     async def _store(self, provider_type: str, payload: bytes, enabled: bool) -> None:

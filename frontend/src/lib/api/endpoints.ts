@@ -20,6 +20,8 @@ import type {
 	FreshnessRead,
 	IntentDetail,
 	IntentRead,
+	LdapSettingsRead,
+	LdapSettingsWrite,
 	LingarrDiscoveryResult,
 	LingarrInstanceCreate,
 	LingarrInstanceRead,
@@ -54,7 +56,20 @@ import type {
 	TimelineResponse,
 	TranslationProfileCreate,
 	TranslationProfileRead,
-	TranslationProfileUpdate
+	TranslationProfileUpdate,
+	UserCreateRequest,
+	UserRead,
+	UserRoleUpdate,
+	WatchRefreshResult,
+	WatchSourceCreate,
+	WatchSourceRead,
+	WatchSourceTestRequest,
+	WatchSourceTestResult,
+	WatchSourceUpdate,
+	WebhookSourceCreate,
+	WebhookSourceCreated,
+	WebhookSourceRead,
+	WebhookSourceUpdate
 } from './types';
 
 function qs(params: Record<string, string | number | boolean | undefined | null>): string {
@@ -775,4 +790,143 @@ export function lingarrPassthroughAction(
 		{ method: 'POST' },
 		fetchFn
 	);
+}
+
+// --- Watch integrations (P5-T1) ---------------------------------------------
+
+export function listWatchSources(fetchFn: FetchLike = fetch): Promise<WatchSourceRead[]> {
+	return apiFetch<WatchSourceRead[]>('/api/v1/watch/sources', {}, fetchFn);
+}
+
+export function createWatchSource(
+	body: WatchSourceCreate,
+	fetchFn: FetchLike = fetch
+): Promise<WatchSourceRead> {
+	return apiFetch<WatchSourceRead>(
+		'/api/v1/watch/sources',
+		{ method: 'POST', body: JSON.stringify(body) },
+		fetchFn
+	);
+}
+
+export function updateWatchSource(
+	id: string,
+	body: WatchSourceUpdate,
+	fetchFn: FetchLike = fetch
+): Promise<WatchSourceRead> {
+	return apiFetch<WatchSourceRead>(
+		`/api/v1/watch/sources/${id}`,
+		{ method: 'PATCH', body: JSON.stringify(body) },
+		fetchFn
+	);
+}
+
+export function deleteWatchSource(id: string, fetchFn: FetchLike = fetch): Promise<void> {
+	return apiFetch<void>(`/api/v1/watch/sources/${id}`, { method: 'DELETE' }, fetchFn);
+}
+
+export function testWatchSource(
+	body: WatchSourceTestRequest,
+	fetchFn: FetchLike = fetch
+): Promise<WatchSourceTestResult> {
+	return apiFetch<WatchSourceTestResult>(
+		'/api/v1/watch/sources/test',
+		{ method: 'POST', body: JSON.stringify(body) },
+		fetchFn
+	);
+}
+
+export function checkWatchSourceHealth(
+	id: string,
+	fetchFn: FetchLike = fetch
+): Promise<WatchSourceRead> {
+	return apiFetch<WatchSourceRead>(
+		`/api/v1/watch/sources/${id}/health`,
+		{ method: 'POST' },
+		fetchFn
+	);
+}
+
+export function refreshWatchScores(fetchFn: FetchLike = fetch): Promise<WatchRefreshResult> {
+	return apiFetch<WatchRefreshResult>('/api/v1/watch/refresh', { method: 'POST' }, fetchFn);
+}
+
+// --- Users & roles (P5-T2) --------------------------------------------------
+
+export function listUsers(fetchFn: FetchLike = fetch): Promise<UserRead[]> {
+	return apiFetch<UserRead[]>('/api/v1/auth/users', {}, fetchFn);
+}
+
+export function createUser(body: UserCreateRequest, fetchFn: FetchLike = fetch): Promise<UserRead> {
+	return apiFetch<UserRead>(
+		'/api/v1/auth/users',
+		{ method: 'POST', body: JSON.stringify(body) },
+		fetchFn
+	);
+}
+
+export function setUserRole(
+	id: string,
+	body: UserRoleUpdate,
+	fetchFn: FetchLike = fetch
+): Promise<UserRead> {
+	return apiFetch<UserRead>(
+		`/api/v1/auth/users/${id}/role`,
+		{ method: 'PATCH', body: JSON.stringify(body) },
+		fetchFn
+	);
+}
+
+export function deleteUser(id: string, fetchFn: FetchLike = fetch): Promise<void> {
+	return apiFetch<void>(`/api/v1/auth/users/${id}`, { method: 'DELETE' }, fetchFn);
+}
+
+// --- LDAP provider settings (P5-T2) -----------------------------------------
+
+export function getLdapSettings(fetchFn: FetchLike = fetch): Promise<LdapSettingsRead | null> {
+	return apiFetch<LdapSettingsRead | null>('/api/v1/auth/providers/ldap', {}, fetchFn);
+}
+
+export function putLdapSettings(
+	body: LdapSettingsWrite,
+	fetchFn: FetchLike = fetch
+): Promise<LdapSettingsRead> {
+	return apiFetch<LdapSettingsRead>(
+		'/api/v1/auth/providers/ldap',
+		{ method: 'PUT', body: JSON.stringify(body) },
+		fetchFn
+	);
+}
+
+// --- Webhook ingestion (P5-T3) ----------------------------------------------
+
+export function listWebhookSources(fetchFn: FetchLike = fetch): Promise<WebhookSourceRead[]> {
+	return apiFetch<WebhookSourceRead[]>('/api/v1/webhooks/sources', {}, fetchFn);
+}
+
+export function createWebhookSource(
+	body: WebhookSourceCreate,
+	fetchFn: FetchLike = fetch
+): Promise<WebhookSourceCreated> {
+	return apiFetch<WebhookSourceCreated>(
+		'/api/v1/webhooks/sources',
+		{ method: 'POST', body: JSON.stringify(body) },
+		fetchFn
+	);
+}
+
+export function updateWebhookSource(
+	id: string,
+	body: WebhookSourceUpdate,
+	fetchFn: FetchLike = fetch
+): Promise<WebhookSourceRead> {
+	return apiFetch<WebhookSourceRead>(
+		`/api/v1/webhooks/sources/${id}`,
+		{ method: 'PATCH', body: JSON.stringify(body) },
+		fetchFn
+	);
+}
+
+export function deleteWebhookSource(id: string, fetchFn: FetchLike = fetch): Promise<void> {
+	return apiFetch<void>(`/api/v1/webhooks/sources/${id}`, { method: 'DELETE' }, fetchFn);
 }

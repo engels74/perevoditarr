@@ -113,6 +113,30 @@ export type TimelineLingarrRequestEntry = Schemas['TimelineLingarrRequestEntry']
 export type TimelinePassthroughEntry = Schemas['TimelinePassthroughEntry'];
 export type PassthroughActionRead = Schemas['PassthroughActionRead'];
 
+// Watch integrations (P5-T1)
+export type WatchSourceRead = Schemas['WatchSourceRead'];
+export type WatchSourceCreate = Schemas['WatchSourceCreate'];
+export type WatchSourceUpdate = Schemas['WatchSourceUpdate'];
+export type WatchSourceConfig = Schemas['WatchSourceConfig'];
+export type WatchSourceHealth = Schemas['WatchSourceHealth'];
+export type WatchSourceTestRequest = Schemas['WatchSourceTestRequest'];
+export type WatchSourceTestResult = Schemas['WatchSourceTestResult'];
+export type WatchRefreshResult = Schemas['WatchRefreshResult'];
+
+// Roles & user management (P5-T2)
+export type UserCreateRequest = Schemas['UserCreateRequest'];
+export type UserRoleUpdate = Schemas['UserRoleUpdate'];
+export type UserRole = UserRead['role'];
+export type LdapSettingsRead = Schemas['LdapSettingsRead'];
+export type LdapSettingsWrite = Schemas['LdapSettingsWrite'];
+
+// Webhook ingestion (P5-T3)
+export type WebhookSourceRead = Schemas['WebhookSourceRead'];
+export type WebhookSourceCreate = Schemas['WebhookSourceCreate'];
+export type WebhookSourceUpdate = Schemas['WebhookSourceUpdate'];
+export type WebhookSourceCreated = Schemas['WebhookSourceCreated'];
+export type WebhookAck = Schemas['WebhookAck'];
+
 // Error problem body (core/errors.py) — not part of the OpenAPI components.
 export interface Problem {
 	status: number;

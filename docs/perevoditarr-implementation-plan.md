@@ -361,16 +361,16 @@ These are distilled from the rules files and PRD §2/§6. Violations are review 
 ## Phase 5 — M4 Watch-aware & extended auth
 
 ### P5-T1 · Watch integrations (FR-X2, FR-Q5)
-- [ ] `watch_source` framework + score cache with TTL; scorer input plugged into P2-T5 weights.
-- [ ] Tautulli client (watch history/popularity), Plex client (history + watchlist), Jellyfin client (playback data) — each optional, independent, doctor-checked, encrypted credentials.
-- [ ] UI: integration settings, watch-boost visibility in plan preview traces ("+2 priority: watched this week (Tautulli)").
+- [x] `watch_source` framework + score cache with TTL; scorer input plugged into P2-T5 weights.
+- [x] Tautulli client (watch history/popularity), Plex client (history + watchlist), Jellyfin client (playback data) — each optional, independent, doctor-checked, encrypted credentials.
+- [x] UI: integration settings, watch-boost visibility in plan preview traces ("+2 priority: watched this week (Tautulli)").
 
 ### P5-T2 · Extended auth & roles (FR-A4, FR-A6)
-- [ ] LDAP bind authentication provider.
-- [ ] Roles: admin vs. viewer enforced via Litestar guards across API + UI; scope PRD open question #3 (per-instance permissions) with an ADR before implementing.
+- [x] LDAP bind authentication provider.
+- [x] Roles: admin vs. viewer enforced via Litestar guards across API + UI; scope PRD open question #3 (per-instance permissions) with an ADR before implementing.
 
 ### P5-T3 · Webhook ingestion (FR-X4)
-- [ ] Inbound webhook endpoints (Bazarr/Sonarr notification targets) as discovery/sync triggers; secret-token validation; dedup with polling-sourced discovery.
+- [x] Inbound webhook endpoints (Bazarr/Sonarr notification targets) as discovery/sync triggers; secret-token validation; dedup with polling-sourced discovery.
 
 ---
 

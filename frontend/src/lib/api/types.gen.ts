@@ -261,6 +261,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/providers/ldap": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** ReadLdapSettings */
+        get: operations["getLdapProviderSettings"];
+        /** WriteLdapSettings */
+        put: operations["putLdapProviderSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/providers/oidc": {
         parameters: {
             query?: never;
@@ -294,6 +312,58 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** ListUsers */
+        get: operations["listUsers"];
+        put?: never;
+        /** CreateUser */
+        post: operations["createUser"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/users/{user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** DeleteUser */
+        delete: operations["deleteUser"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/users/{user_id}/role": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** SetRole */
+        patch: operations["setUserRole"];
         trace?: never;
     };
     "/api/v1/instances/bazarr/{instance_id}/health-check": {
@@ -1432,6 +1502,146 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/watch/sources/{source_id}/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** CheckHealth */
+        post: operations["checkWatchSourceHealth"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/watch/sources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** ListSources */
+        get: operations["listWatchSources"];
+        put?: never;
+        /** CreateSource */
+        post: operations["createWatchSource"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/watch/sources/{source_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** DeleteSource */
+        delete: operations["deleteWatchSource"];
+        options?: never;
+        head?: never;
+        /** UpdateSource */
+        patch: operations["updateWatchSource"];
+        trace?: never;
+    };
+    "/api/v1/watch/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Refresh */
+        post: operations["refreshWatchScores"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/watch/sources/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** TestSource */
+        post: operations["testWatchSource"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/webhooks/sources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** ListSources */
+        get: operations["listWebhookSources"];
+        put?: never;
+        /** CreateSource */
+        post: operations["createWebhookSource"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/webhooks/sources/{source_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** DeleteSource */
+        delete: operations["deleteWebhookSource"];
+        options?: never;
+        head?: never;
+        /** UpdateSource */
+        patch: operations["updateWebhookSource"];
+        trace?: never;
+    };
+    "/api/v1/webhooks/ingest/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Ingest */
+        post: operations["ingestWebhook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1788,6 +1998,36 @@ export interface components {
             createdAt: string;
             /** Format: date-time */
             updatedAt: string;
+        };
+        /** LdapSettingsRead */
+        LdapSettingsRead: {
+            enabled: boolean;
+            serverUri: string;
+            bindDn: string;
+            bindPasswordSet: boolean;
+            userSearchBase: string;
+            userFilter: string;
+            emailAttribute: string;
+            startTls: boolean;
+            autoCreateUsers: boolean;
+        };
+        /** LdapSettingsWrite */
+        LdapSettingsWrite: {
+            enabled: boolean;
+            serverUri: string;
+            /** @default  */
+            bindDn: string;
+            bindPassword?: string | null;
+            /** @default  */
+            userSearchBase: string;
+            /** @default (uid={username}) */
+            userFilter: string;
+            /** @default mail */
+            emailAttribute: string;
+            /** @default false */
+            startTls: boolean;
+            /** @default true */
+            autoCreateUsers: boolean;
         };
         /** LingarrDiscoveryConfirm */
         LingarrDiscoveryConfirm: {
@@ -2491,15 +2731,34 @@ export interface components {
             description?: string | null;
             values?: components["schemas"]["PolicyValuesRequest"];
         };
+        /** UserCreateRequest */
+        UserCreateRequest: {
+            username: string;
+            password: string;
+            email?: string | null;
+            /**
+             * @default viewer
+             * @enum {string}
+             */
+            role: "admin" | "viewer";
+        };
         /** UserRead */
         UserRead: {
             /** Format: uuid */
             id: string;
             username: string;
             email: string | null;
+            /** @enum {string} */
+            role: "admin" | "viewer";
             isAdmin: boolean;
+            isActive: boolean;
             /** Format: date-time */
             createdAt: string;
+        };
+        /** UserRoleUpdate */
+        UserRoleUpdate: {
+            /** @enum {string} */
+            role: "admin" | "viewer";
         };
         /** VolumeEstimateDto */
         VolumeEstimateDto: {
@@ -2513,6 +2772,129 @@ export interface components {
             language: string;
             forced: boolean;
             hi: boolean;
+        };
+        /** WatchRefreshResult */
+        WatchRefreshResult: {
+            sourcesPolled: number;
+            sourcesFailed: number;
+            titlesScored: number;
+        };
+        /** WatchSourceConfig */
+        WatchSourceConfig: {
+            jellyfinUser?: string | null;
+            /** @default true */
+            includeWatchlist: boolean;
+        };
+        /** WatchSourceCreate */
+        WatchSourceCreate: {
+            name: string;
+            /** @enum {string} */
+            sourceType: "tautulli" | "plex" | "jellyfin";
+            url: string;
+            credential: string;
+            /** @default true */
+            enabled: boolean;
+            config?: components["schemas"]["WatchSourceConfig"];
+        };
+        /** WatchSourceHealth */
+        WatchSourceHealth: {
+            reachable: boolean;
+            identity?: string | null;
+            version?: string | null;
+            detail?: string | null;
+            checkedAt?: string | null;
+        };
+        /** WatchSourceRead */
+        WatchSourceRead: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            /** @enum {string} */
+            sourceType: "tautulli" | "plex" | "jellyfin";
+            url: string;
+            hasCredential: boolean;
+            enabled: boolean;
+            config: components["schemas"]["WatchSourceConfig"];
+            health: components["schemas"]["WatchSourceHealth"] | null;
+            lastRefreshedAt: string | null;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        /** WatchSourceTestRequest */
+        WatchSourceTestRequest: {
+            /** @enum {string} */
+            sourceType: "tautulli" | "plex" | "jellyfin";
+            url: string;
+            credential: string;
+            config?: components["schemas"]["WatchSourceConfig"];
+        };
+        /** WatchSourceTestResult */
+        WatchSourceTestResult: {
+            reachable: boolean;
+            identity?: string | null;
+            version?: string | null;
+            detail?: string | null;
+        };
+        /** WatchSourceUpdate */
+        WatchSourceUpdate: {
+            name?: string;
+            url?: string;
+            credential?: string;
+            enabled?: boolean;
+            config?: components["schemas"]["WatchSourceConfig"];
+        };
+        /** WebhookAck */
+        WebhookAck: {
+            accepted: boolean;
+            coalesced: boolean;
+        };
+        /** WebhookSourceCreate */
+        WebhookSourceCreate: {
+            name: string;
+            /** Format: uuid */
+            bazarrInstanceId: string;
+            /**
+             * @default bazarr
+             * @enum {string}
+             */
+            kind: "bazarr" | "sonarr";
+        };
+        /** WebhookSourceCreated */
+        WebhookSourceCreated: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            /** Format: uuid */
+            bazarrInstanceId: string;
+            /** @enum {string} */
+            kind: "bazarr" | "sonarr";
+            enabled: boolean;
+            lastReceivedAt: string | null;
+            lastStatus: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            ingestPath: string;
+            token: string;
+        };
+        /** WebhookSourceRead */
+        WebhookSourceRead: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            /** Format: uuid */
+            bazarrInstanceId: string;
+            /** @enum {string} */
+            kind: "bazarr" | "sonarr";
+            enabled: boolean;
+            lastReceivedAt: string | null;
+            lastStatus: string | null;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        /** WebhookSourceUpdate */
+        WebhookSourceUpdate: {
+            name?: string;
+            enabled?: boolean;
         };
         /** WindowKUpdate */
         WindowKUpdate: {
@@ -2997,6 +3379,65 @@ export interface operations {
             };
         };
     };
+    getLdapProviderSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LdapSettingsRead"] | null;
+                };
+            };
+        };
+    };
+    putLdapProviderSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LdapSettingsWrite"];
+            };
+        };
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LdapSettingsRead"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
     getOidcProviderSettings: {
         parameters: {
             query?: never;
@@ -3072,6 +3513,141 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserRead"];
+                };
+            };
+        };
+    };
+    listUsers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserRead"][];
+                };
+            };
+        };
+    };
+    createUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UserCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Document created, URL follows */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserRead"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    deleteUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Request fulfilled, nothing follows */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    setUserRole: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UserRoleUpdate"];
+            };
+        };
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserRead"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
                 };
             };
         };
@@ -5899,6 +6475,409 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StatsOverviewResponse"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    checkWatchSourceHealth: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                source_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Document created, URL follows */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WatchSourceRead"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    listWatchSources: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WatchSourceRead"][];
+                };
+            };
+        };
+    };
+    createWatchSource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WatchSourceCreate"];
+            };
+        };
+        responses: {
+            /** @description Document created, URL follows */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WatchSourceRead"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    deleteWatchSource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                source_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Request fulfilled, nothing follows */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    updateWatchSource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                source_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WatchSourceUpdate"];
+            };
+        };
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WatchSourceRead"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    refreshWatchScores: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Document created, URL follows */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WatchRefreshResult"];
+                };
+            };
+        };
+    };
+    testWatchSource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WatchSourceTestRequest"];
+            };
+        };
+        responses: {
+            /** @description Document created, URL follows */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WatchSourceTestResult"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    listWebhookSources: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebhookSourceRead"][];
+                };
+            };
+        };
+    };
+    createWebhookSource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WebhookSourceCreate"];
+            };
+        };
+        responses: {
+            /** @description Document created, URL follows */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebhookSourceCreated"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    deleteWebhookSource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                source_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Request fulfilled, nothing follows */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    updateWebhookSource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                source_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WebhookSourceUpdate"];
+            };
+        };
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebhookSourceRead"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    ingestWebhook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Request accepted, processing continues off-line */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebhookAck"];
                 };
             };
             /** @description Bad request syntax or unsupported method */

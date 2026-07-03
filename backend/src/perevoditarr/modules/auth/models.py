@@ -17,8 +17,14 @@ class User(UUIDAuditBase):
     # None for externally-authenticated users (OIDC / forward-auth).
     password_hash: Mapped[str | None] = mapped_column(String(255))
     oidc_subject: Mapped[str | None] = mapped_column(String(255), unique=True)
-    is_admin: Mapped[bool] = mapped_column(default=True)
+    # admin (full) | viewer (read-only observer), FR-A6 / ADR-0008. Kept as a
+    # string for a clean generalization path if finer roles ever land.
+    role: Mapped[str] = mapped_column(String(16), default="admin")
     is_active: Mapped[bool] = mapped_column(default=True)
+
+    @property
+    def is_admin(self) -> bool:
+        return self.role == "admin"
 
     api_keys: Mapped[list[ApiKey]] = relationship(
         back_populates="user", lazy="raise", cascade="all, delete-orphan"

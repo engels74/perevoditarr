@@ -279,6 +279,7 @@ def test_telemetry_stream_health_surfacing() -> None:
 
 def test_registry_contains_all_checks() -> None:
     # FR-DR1..FR-DR11 (P1-T6) plus P3 additions: circuit-breaker surfacing
-    # (FR-DR12) and telemetry stream health (FR-DR13).
+    # (FR-DR12) and telemetry stream health (FR-DR13); P5 adds watch-source
+    # health (FR-DR14).
     ids = sorted(check.check_id for check in all_checks())
-    assert ids == sorted(f"FR-DR{n}" for n in range(1, 14))
+    assert ids == sorted(f"FR-DR{n}" for n in range(1, 15))

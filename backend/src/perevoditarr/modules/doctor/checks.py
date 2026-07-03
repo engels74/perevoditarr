@@ -760,6 +760,44 @@ class OperationalSanityCheck:
         return findings
 
 
+@register
+class WatchSourceHealthCheck:
+    """P5-T1 (FR-DR14): watch-integration sources are reachable.
+
+    Watch data is a soft priority signal (ADR-0007), so an unreachable source is
+    a warning — it only means "no watch boost", never a correctness fault."""
+
+    check_id: str = "FR-DR14"
+
+    def run(self, context: DoctorContext) -> list[Finding]:
+        findings: list[Finding] = []
+        for source in context.watch_sources:
+            if not source.enabled or source.reachable:
+                continue
+            findings.append(
+                Finding(
+                    check_id=self.check_id,
+                    severity="warn",
+                    message=(
+                        f"Watch source '{source.name}' ({source.source_type}) "
+                        "is unreachable"
+                    ),
+                    explanation=(
+                        "Watch-history integrations only raise priority for "
+                        "recently/frequently watched or watchlisted items "
+                        "(FR-X2/FR-Q5). While a source is unreachable those "
+                        "boosts are absent — dispatch correctness is unaffected."
+                    ),
+                    fix_guidance=(
+                        "Verify the source URL/credential from Settings → "
+                        "Integrations, or disable the source if it is retired."
+                    ),
+                    data={"sourceType": source.source_type, "detail": source.detail},
+                )
+            )
+        return findings
+
+
 def all_checks() -> tuple[DoctorCheck, ...]:
     """The FR-DR1..FR-DR11 registry (populated by this module's imports)."""
     return registered_checks()

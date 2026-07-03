@@ -16,6 +16,7 @@ from typing import Literal
 
 import msgspec
 
+from perevoditarr.modules.integrations.watch import WatchSignal
 from perevoditarr.modules.policy.resolver import PriorityWeights
 
 
@@ -29,6 +30,10 @@ class ScoreFacts(msgspec.Struct, kw_only=True, frozen=True):
     recency_anchor: datetime
     # None = unknown (movies, or series without an ended flag) — no bonus.
     series_ended: bool | None = None
+    # Aggregated watch-history signal (P5-T1, FR-Q5); None when no watch source
+    # reports activity for the item, so the "watch" component is then absent and
+    # scoring stays byte-identical to pre-P5 (ADR-0007).
+    watch: WatchSignal | None = None
 
 
 class ScoreBreakdown(msgspec.Struct, kw_only=True, frozen=True):
@@ -63,4 +68,21 @@ def score_intent(
         "continuing": continuing,
         "recency": recency,
     }
+    # Watch boost is additive and appended last so it never perturbs the
+    # existing component order; the key is absent entirely when no signal exists
+    # (ADR-0007), keeping pre-P5 breakdowns byte-identical.
+    if facts.watch is not None:
+        components["watch"] = watch_boost(facts.watch, weights)
     return ScoreBreakdown(total=sum(components.values()), components=components)
+
+
+def watch_boost(signal: WatchSignal, weights: PriorityWeights) -> int:
+    """Additive priority points from an aggregated watch signal (FR-Q5)."""
+    boost = 0
+    if signal.watched_recently:
+        boost += weights.watch_recent_bonus
+    if signal.watched_frequently:
+        boost += weights.watch_frequent_bonus
+    if signal.watchlisted:
+        boost += weights.watchlist_bonus
+    return boost

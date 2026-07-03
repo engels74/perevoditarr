@@ -1,7 +1,7 @@
 """Auth API DTOs and internal provider-settings structs (P1-T2)."""
 
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID
 
 import msgspec
@@ -12,6 +12,8 @@ Username = Annotated[
     str, msgspec.Meta(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9._@-]+$")
 ]
 Password = Annotated[str, msgspec.Meta(min_length=10, max_length=256)]
+
+type UserRole = Literal["admin", "viewer"]
 
 
 class SetupStatus(ApiStruct):
@@ -33,8 +35,21 @@ class UserRead(ApiStruct):
     id: UUID
     username: str
     email: str | None
+    role: UserRole
     is_admin: bool
+    is_active: bool
     created_at: datetime
+
+
+class UserCreateRequest(ApiRequest):
+    username: Username
+    password: Password
+    email: str | None = None
+    role: UserRole = "viewer"
+
+
+class UserRoleUpdate(ApiRequest):
+    role: UserRole
 
 
 class ApiKeyCreateRequest(ApiRequest):
@@ -121,4 +136,43 @@ class ForwardAuthProviderSettings(msgspec.Struct, kw_only=True):
     enabled: bool
     user_header: str
     email_header: str
+    auto_create_users: bool
+
+
+class LdapSettingsWrite(ApiRequest):
+    enabled: bool
+    server_uri: Annotated[str, msgspec.Meta(min_length=1, max_length=512)]
+    # Service account for the search bind; empty = anonymous bind.
+    bind_dn: str = ""
+    # Write-only (FR-A5); omit on update to keep the stored password.
+    bind_password: str | None = None
+    user_search_base: str = ""
+    # {username} is substituted with the login name.
+    user_filter: str = "(uid={username})"
+    email_attribute: str = "mail"
+    start_tls: bool = False
+    auto_create_users: bool = True
+
+
+class LdapSettingsRead(ApiStruct):
+    enabled: bool
+    server_uri: str
+    bind_dn: str
+    bind_password_set: bool
+    user_search_base: str
+    user_filter: str
+    email_attribute: str
+    start_tls: bool
+    auto_create_users: bool
+
+
+class LdapProviderSettings(msgspec.Struct, kw_only=True):
+    enabled: bool
+    server_uri: str
+    bind_dn: str
+    bind_password: str
+    user_search_base: str
+    user_filter: str
+    email_attribute: str
+    start_tls: bool
     auto_create_users: bool

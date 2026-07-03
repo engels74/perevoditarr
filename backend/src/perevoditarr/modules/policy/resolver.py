@@ -36,6 +36,12 @@ class PriorityWeights(msgspec.Struct, kw_only=True, frozen=True):
     # else first-seen): full weight when brand new, half after each half-life.
     recency_max: int = 40
     recency_half_life_hours: int = 168
+    # Watch-aware bonuses (P5-T1, FR-Q5): applied only when a configured watch
+    # source reports activity for the item (ADR-0007). Cascade as part of the
+    # same atomic weight set; a fresh install with no watch source never boosts.
+    watch_recent_bonus: int = 15
+    watch_frequent_bonus: int = 10
+    watchlist_bonus: int = 10
 
 
 class PolicyValues(msgspec.Struct, kw_only=True, omit_defaults=True):

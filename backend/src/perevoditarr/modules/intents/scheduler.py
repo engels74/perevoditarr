@@ -16,6 +16,7 @@ from perevoditarr.core.security import SecretBox
 from perevoditarr.core.sse import SseBus
 from perevoditarr.modules.instances import InstanceGateway, InstancesService
 from perevoditarr.modules.intents.discovery import DiscoveryService
+from perevoditarr.modules.watch import WATCH_SCORE_TTL_SECONDS
 
 _logger = get_logger()
 
@@ -28,6 +29,7 @@ async def run_discovery(
     *,
     instance_id: UUID | None = None,
     locks: InstanceLockRegistry | None = None,
+    watch_ttl_seconds: int = WATCH_SCORE_TTL_SECONDS,
 ) -> None:
     """Run discovery for one instance (sync-completion trigger) or all
     enabled instances (scheduled loop); per-instance failures never cascade.
@@ -38,7 +40,9 @@ async def run_discovery(
     registry = locks if locks is not None else InstanceLockRegistry()
     async with alchemy.get_session() as session:
         instances = InstancesService(session, secret_box)
-        discovery = DiscoveryService(session, secret_box, gateway, sse_bus)
+        discovery = DiscoveryService(
+            session, secret_box, gateway, sse_bus, watch_ttl_seconds=watch_ttl_seconds
+        )
         # Plain-data snapshot: a mid-pass rollback expires every ORM row
         # loaded so far, so neither the loop nor the log handler may touch
         # attributes of rows fetched before the failure.
@@ -67,7 +71,15 @@ async def discovery_loop(
     sse_bus: SseBus,
     interval_seconds: int,
     locks: InstanceLockRegistry | None = None,
+    watch_ttl_seconds: int = WATCH_SCORE_TTL_SECONDS,
 ) -> None:
     while True:
         await asyncio.sleep(interval_seconds)
-        await run_discovery(alchemy, gateway, secret_box, sse_bus, locks=locks)
+        await run_discovery(
+            alchemy,
+            gateway,
+            secret_box,
+            sse_bus,
+            locks=locks,
+            watch_ttl_seconds=watch_ttl_seconds,
+        )

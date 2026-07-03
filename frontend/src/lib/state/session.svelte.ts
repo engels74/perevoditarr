@@ -107,6 +107,9 @@ export function createSessionState(fetchFn: FetchLike = fetch) {
 		get user() {
 			return user;
 		},
+		get isAdmin(): boolean {
+			return user?.isAdmin ?? false;
+		},
 		get loading() {
 			return loading;
 		},

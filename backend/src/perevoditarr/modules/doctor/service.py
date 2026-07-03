@@ -18,6 +18,7 @@ from perevoditarr.modules.doctor.framework import (
     DoctorContext,
     Finding,
     LingarrContext,
+    WatchSourceContext,
 )
 from perevoditarr.modules.doctor.models import DoctorFinding, DoctorRun
 from perevoditarr.modules.doctor.schemas import DoctorFindingRead, DoctorRunRead
@@ -28,6 +29,7 @@ from perevoditarr.modules.mirror.models import SyncRun
 from perevoditarr.modules.policy import PolicyService
 from perevoditarr.modules.rails.models import RailState
 from perevoditarr.modules.telemetry import TelemetryHealthRegistry
+from perevoditarr.modules.watch import WatchGateway, WatchService
 
 type DoctorTrigger = Literal["manual", "scheduled", "contextual"]
 
@@ -214,7 +216,33 @@ class DoctorService:
             instances=contexts,
             forward_auth_misconfigured=self.forward_auth_misconfigured,
             translation_profiles=list(await policy.profile_summaries()),
+            watch_sources=await self._watch_contexts(),
         )
+
+    async def _watch_contexts(self) -> list[WatchSourceContext]:
+        watch = WatchService(
+            self.session, self.secret_box, WatchGateway(self.gateway.registry)
+        )
+        contexts: list[WatchSourceContext] = []
+        for source in await watch.list_sources():
+            reachable = False
+            detail: str | None = None
+            if source.enabled:
+                # Read-only probe (N4): never persists a health snapshot here.
+                probe = await watch.probe_source(source)
+                reachable = probe.reachable
+                detail = probe.detail
+            contexts.append(
+                WatchSourceContext(
+                    source_id=source.id,
+                    name=source.name,
+                    source_type=source.source_type,
+                    enabled=source.enabled,
+                    reachable=reachable,
+                    detail=detail,
+                )
+            )
+        return contexts
 
     # ------------------------------------------------------------ runs
 

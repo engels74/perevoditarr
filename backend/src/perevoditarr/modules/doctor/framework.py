@@ -65,6 +65,17 @@ class BazarrContext(msgspec.Struct, kw_only=True):
     telemetry_streams: dict[str, str] = msgspec.field(default_factory=dict)
 
 
+class WatchSourceContext(msgspec.Struct, kw_only=True):
+    # Watch-integration health (P5-T1/FR-X2). Soft signal, so an unreachable
+    # source is a warning, never critical.
+    source_id: UUID
+    name: str
+    source_type: str
+    enabled: bool
+    reachable: bool = False
+    detail: str | None = None
+
+
 class DoctorContext(msgspec.Struct, kw_only=True):
     now: datetime
     instances: list[BazarrContext] = msgspec.field(default_factory=list)
@@ -73,6 +84,8 @@ class DoctorContext(msgspec.Struct, kw_only=True):
     translation_profiles: list[ProfilePolicySummary] = msgspec.field(
         default_factory=list
     )
+    # Watch-source health (P5-T1); empty when no watch source is configured.
+    watch_sources: list[WatchSourceContext] = msgspec.field(default_factory=list)
 
 
 class DoctorCheck(Protocol):

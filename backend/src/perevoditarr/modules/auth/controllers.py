@@ -1,11 +1,11 @@
 """Auth & first-run setup controllers (P1-T2)."""
 
 from collections.abc import Sequence
-from typing import Annotated
+from typing import Annotated, cast
 from urllib.parse import urlsplit, urlunsplit
 from uuid import UUID
 
-from litestar import Controller, Request, Response, delete, get, post, put
+from litestar import Controller, Request, Response, delete, get, patch, post, put
 from litestar.datastructures import State
 from litestar.exceptions import NotAuthorizedException
 from litestar.params import Parameter
@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from perevoditarr.core.errors import DomainValidationError
 from perevoditarr.core.http import HttpClientRegistry
+from perevoditarr.modules.auth.ldap import ldap_authenticate
 from perevoditarr.modules.auth.models import User
 from perevoditarr.modules.auth.oidc import OIDC_STATE_COOKIE, OidcFlow
 from perevoditarr.modules.auth.schemas import (
@@ -25,6 +26,9 @@ from perevoditarr.modules.auth.schemas import (
     ForwardAuthProviderSettings,
     ForwardAuthSettingsRead,
     ForwardAuthSettingsWrite,
+    LdapProviderSettings,
+    LdapSettingsRead,
+    LdapSettingsWrite,
     LoginProviders,
     LoginRequest,
     OidcProviderSettings,
@@ -33,7 +37,10 @@ from perevoditarr.modules.auth.schemas import (
     OidcSettingsWrite,
     SetupRequest,
     SetupStatus,
+    UserCreateRequest,
     UserRead,
+    UserRole,
+    UserRoleUpdate,
 )
 from perevoditarr.modules.auth.security import (
     AuthRuntime,
@@ -53,7 +60,9 @@ def _user_read(user: User) -> UserRead:
         id=user.id,
         username=user.username,
         email=user.email,
+        role=cast("UserRole", user.role),
         is_admin=user.is_admin,
+        is_active=user.is_active,
         created_at=user.created_at,
     )
 
@@ -108,16 +117,33 @@ class AuthController(Controller):
         self,
         data: LoginRequest,
         auth_service: AuthService,
+        auth_runtime: AuthRuntime,
         session_auth: SessionAuth,
     ) -> Response[UserRead]:
         user = await auth_service.authenticate(data.username, data.password)
+        # LDAP is a fallback so local users still authenticate first (FR-A4).
+        ldap = auth_runtime.ldap
+        if user is None and ldap is not None and ldap.enabled:
+            identity = await ldap_authenticate(ldap, data.username, data.password)
+            if identity is not None:
+                user = await auth_service.get_or_provision_external(
+                    username=identity.username,
+                    email=identity.email,
+                    oidc_subject=None,
+                    auto_create=ldap.auto_create_users,
+                )
         if user is None:
             raise NotAuthorizedException("invalid credentials")
         return session_auth.login(
             identifier=str(user.id), response_body=_user_read(user)
         )
 
-    @post("/refresh", status_code=HTTP_200_OK, operation_id="refreshSession")
+    @post(
+        "/refresh",
+        status_code=HTTP_200_OK,
+        operation_id="refreshSession",
+        opt={"viewer_write": True},
+    )
     async def refresh(
         self, request: UserRequest, session_auth: SessionAuth
     ) -> Response[UserRead]:
@@ -125,7 +151,12 @@ class AuthController(Controller):
             identifier=str(request.user.id), response_body=_user_read(request.user)
         )
 
-    @post("/logout", status_code=HTTP_200_OK, operation_id="logout")
+    @post(
+        "/logout",
+        status_code=HTTP_200_OK,
+        operation_id="logout",
+        opt={"viewer_write": True},
+    )
     async def logout(self, session_auth: SessionAuth) -> Response[None]:
         response = Response[None](None)
         response.delete_cookie(session_auth.cookie_key)
@@ -363,6 +394,98 @@ class AuthController(Controller):
             auto_create_users=stored.auto_create_users,
             trusted_proxies=list(auth_runtime.settings.trusted_proxies),
         )
+
+    @get(
+        "/providers/ldap",
+        guards=[require_admin],
+        operation_id="getLdapProviderSettings",
+    )
+    async def read_ldap_settings(
+        self, provider_service: ProviderConfigService
+    ) -> LdapSettingsRead | None:
+        stored = await provider_service.load_ldap()
+        return _ldap_read(stored) if stored is not None else None
+
+    @put(
+        "/providers/ldap",
+        guards=[require_admin],
+        operation_id="putLdapProviderSettings",
+    )
+    async def write_ldap_settings(
+        self,
+        data: LdapSettingsWrite,
+        provider_service: ProviderConfigService,
+        auth_runtime: AuthRuntime,
+    ) -> LdapSettingsRead:
+        existing = await provider_service.load_ldap()
+        bind_password = data.bind_password
+        if bind_password is None and existing is not None:
+            bind_password = existing.bind_password
+        stored = LdapProviderSettings(
+            enabled=data.enabled,
+            server_uri=data.server_uri,
+            bind_dn=data.bind_dn,
+            # Empty is legitimate: an anonymous search bind (FR-A4).
+            bind_password=bind_password or "",
+            user_search_base=data.user_search_base,
+            user_filter=data.user_filter,
+            email_attribute=data.email_attribute,
+            start_tls=data.start_tls,
+            auto_create_users=data.auto_create_users,
+        )
+        await provider_service.store_ldap(stored)
+        auth_runtime.ldap = stored
+        return _ldap_read(stored)
+
+
+def _ldap_read(stored: LdapProviderSettings) -> LdapSettingsRead:
+    return LdapSettingsRead(
+        enabled=stored.enabled,
+        server_uri=stored.server_uri,
+        bind_dn=stored.bind_dn,
+        bind_password_set=bool(stored.bind_password),
+        user_search_base=stored.user_search_base,
+        user_filter=stored.user_filter,
+        email_attribute=stored.email_attribute,
+        start_tls=stored.start_tls,
+        auto_create_users=stored.auto_create_users,
+    )
+
+
+class UsersController(Controller):
+    """User management (admin-only, FR-A6). require_admin gates every handler,
+    including the list, so viewers cannot enumerate accounts."""
+
+    path: str = "/auth/users"
+    tags: Sequence[str] | None = ("auth",)
+
+    @get("/", guards=[require_admin], operation_id="listUsers")
+    async def list_users(self, auth_service: AuthService) -> list[UserRead]:
+        return [_user_read(user) for user in await auth_service.list_users()]
+
+    @post("/", guards=[require_admin], operation_id="createUser")
+    async def create_user(
+        self, data: UserCreateRequest, auth_service: AuthService
+    ) -> UserRead:
+        user = await auth_service.create_user(
+            username=data.username,
+            password=data.password,
+            email=data.email,
+            role=data.role,
+        )
+        return _user_read(user)
+
+    @patch("/{user_id:uuid}/role", guards=[require_admin], operation_id="setUserRole")
+    async def set_role(
+        self, user_id: UUID, data: UserRoleUpdate, auth_service: AuthService
+    ) -> UserRead:
+        return _user_read(await auth_service.set_role(user_id, data.role))
+
+    @delete("/{user_id:uuid}", guards=[require_admin], operation_id="deleteUser")
+    async def delete_user(
+        self, user_id: UUID, request: UserRequest, auth_service: AuthService
+    ) -> None:
+        await auth_service.delete_user(user_id, actor_id=request.user.id)
 
 
 async def provide_auth_service(db_session: AsyncSession) -> AuthService:

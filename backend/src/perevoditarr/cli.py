@@ -47,7 +47,7 @@ def resolve_password(cli_password: str | None) -> str:
 
 
 async def _create_user(
-    *, username: str, password: str, email: str | None, is_admin: bool
+    *, username: str, password: str, email: str | None, role: str
 ) -> None:
     from perevoditarr.core.db import build_alchemy_config
     from perevoditarr.core.errors import PerevoditarrError
@@ -59,12 +59,12 @@ async def _create_user(
         service = AuthService(session)
         try:
             user = await service.create_user(
-                username=username, password=password, email=email, is_admin=is_admin
+                username=username, password=password, email=email, role=role
             )
         except PerevoditarrError as error:
             print(f"error: {error}", file=sys.stderr)
             raise SystemExit(1) from error
-    print(f"created user {user.username} (admin={user.is_admin})")
+    print(f"created user {user.username} (role={user.role})")
 
 
 async def _run_doctor() -> None:
@@ -183,7 +183,7 @@ def main() -> None:
     )
     _ = export.add_argument("--out", default=None, help="output file (default stdout)")
 
-    create = subparsers.add_parser("create-user", help="create an admin user")
+    create = subparsers.add_parser("create-user", help="create a user")
     _ = create.add_argument("--username", required=True)
     _ = create.add_argument(
         "--password",
@@ -191,6 +191,7 @@ def main() -> None:
         help=f"user password (or ${_PASSWORD_ENV}, or interactive prompt)",
     )
     _ = create.add_argument("--email", default=None)
+    _ = create.add_argument("--role", choices=["admin", "viewer"], default="admin")
 
     _ = subparsers.add_parser("run-doctor", help="run the configuration doctor")
 
@@ -219,7 +220,7 @@ def main() -> None:
                     username=username,
                     password=password,
                     email=str_arg(cast("object", args.email)),
-                    is_admin=True,
+                    role=str_arg(cast("object", args.role)) or "admin",
                 )
             )
         case "run-doctor":

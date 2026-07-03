@@ -103,7 +103,7 @@ async function signOut() {
 			aria-label="Loading"
 		></div>
 	</div>
-{:else if session.user !== null}
+{:else if session.user !== null && !session.setupRequired}
 	<div class="min-h-screen bg-background text-foreground">
 		<header class="flex items-center justify-between border-b px-6 py-3">
 			<div class="flex items-center gap-6">

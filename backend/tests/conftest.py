@@ -92,6 +92,12 @@ def complete_setup(
         },
     )
     assert response.status_code == 200, response.text
+    # POST /api/v1/setup only creates the initial admin now; it no longer marks
+    # first-run setup complete (that is POST /api/v1/setup/finish, which needs a
+    # Bazarr instance). Existing integration suites just need the gate OPEN, so
+    # flip the in-memory AuthRuntime cache: is_setup_completed() then
+    # short-circuits True for this app instance (tests reuse one app).
+    client_auth_runtime(client).mark_setup_completed()
 
 
 def csrf_headers(client: TestClient[Litestar]) -> dict[str, str]:

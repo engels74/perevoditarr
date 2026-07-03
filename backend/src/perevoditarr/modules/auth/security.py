@@ -90,7 +90,10 @@ class AuthRuntime:
         if self._setup_completed:
             return True
         async with self.alchemy.get_session() as session:
-            if await AuthService(session).user_count() > 0:
+            service = AuthService(session)
+            # Completion is a durable FACT (app_setup_state flag) AND-guarded by
+            # user_count>0 so a corrupt/empty-user flag can never open the gate.
+            if await service.get_setup_completed() and await service.user_count() > 0:
                 self._setup_completed = True
         return self._setup_completed
 
@@ -217,11 +220,26 @@ class SessionAuthenticator:
         return bool(self._jwt_auth.secure)
 
 
-_SETUP_ALLOWED_PREFIXES = ("/api/v1/setup", "/api/v1/health")
+_SETUP_ALLOWED_PREFIXES = (
+    "/api/v1/setup",
+    "/api/v1/health",
+    "/api/v1/auth",
+    "/api/v1/instances",
+    "/api/v1/policy",
+    "/api/v1/notifications",
+)
 
 
 def setup_gate_middleware(app: ASGIApp) -> ASGIApp:
-    """While no user exists, the API exposes only /api/v1/setup (FR-A1)."""
+    """While first-run setup is incomplete, expose only the wizard-reachable
+    path prefixes; every other /api/* path returns 403 setup-required.
+
+    This gate runs at ASGI position 0 — BEFORE JWT authentication — so it is
+    deliberately user-agnostic and never reads scope['user']. Per-path
+    authorization for the allow-listed config prefixes stays at the router-level
+    enforce_role guard plus JWT auth: an unauthenticated hit on a config prefix
+    returns 401 (auth), not 403 (setup-required).
+    """
 
     async def middleware(scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] == ScopeType.HTTP:

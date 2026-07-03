@@ -2,6 +2,7 @@
 // function is injectable for tests.
 
 import { ApiError, apiFetch, type FetchLike } from '$lib/api/client';
+import { finishSetup as finishSetupRequest, getSetupStatus } from '$lib/api/endpoints';
 import type { SetupStatus, UserRead } from '$lib/api/types';
 
 export interface SetupInput {
@@ -21,6 +22,8 @@ export function createSessionState(fetchFn: FetchLike = fetch) {
 	let initialized = $state(false);
 	let error = $state<string | null>(null);
 	let setupRequired = $state(false);
+	let setupPhase = $state<SetupStatus['phase'] | null>(null);
+	let setupChecklist = $state<SetupStatus['checklist'] | null>(null);
 
 	async function initialize(): Promise<void> {
 		loading = true;
@@ -28,6 +31,8 @@ export function createSessionState(fetchFn: FetchLike = fetch) {
 		try {
 			const status = await apiFetch<SetupStatus>('/api/v1/setup/status', {}, fetchFn);
 			setupRequired = status.required;
+			setupPhase = status.phase;
+			setupChecklist = status.checklist;
 			if (!status.required) {
 				try {
 					user = await apiFetch<UserRead>('/api/v1/auth/me', {}, fetchFn);
@@ -95,7 +100,35 @@ export function createSessionState(fetchFn: FetchLike = fetch) {
 				},
 				fetchFn
 			);
-			setupRequired = false;
+			await refreshSetup();
+			return true;
+		} catch (cause) {
+			error = errorMessage(cause);
+			return false;
+		} finally {
+			loading = false;
+		}
+	}
+
+	async function refreshSetup(): Promise<void> {
+		try {
+			const status = await getSetupStatus(fetchFn);
+			setupRequired = status.required;
+			setupPhase = status.phase;
+			setupChecklist = status.checklist;
+		} catch (cause) {
+			error = errorMessage(cause);
+		}
+	}
+
+	async function finishSetup(): Promise<boolean> {
+		loading = true;
+		error = null;
+		try {
+			const status = await finishSetupRequest(fetchFn);
+			setupRequired = status.required;
+			setupPhase = status.phase;
+			setupChecklist = status.checklist;
 			return true;
 		} catch (cause) {
 			error = errorMessage(cause);
@@ -124,10 +157,18 @@ export function createSessionState(fetchFn: FetchLike = fetch) {
 		get setupRequired() {
 			return setupRequired;
 		},
+		get setupPhase() {
+			return setupPhase;
+		},
+		get setupChecklist() {
+			return setupChecklist;
+		},
 		initialize,
 		login,
 		logout,
-		completeSetup
+		completeSetup,
+		refreshSetup,
+		finishSetup
 	};
 }
 

@@ -17,9 +17,24 @@ BootstrapToken = Annotated[str, msgspec.Meta(min_length=1, max_length=64)]
 type UserRole = Literal["admin", "viewer"]
 
 
+type SetupPhase = Literal[
+    "admin", "bazarr", "lingarr", "policy", "notifications", "finish", "done"
+]
+
+
+class SetupChecklist(ApiStruct):
+    has_admin: bool
+    bazarr_count: int
+    lingarr_count: int
+    notification_count: int
+
+
 class SetupStatus(ApiStruct):
     required: bool
     bootstrap_required: bool
+    completed: bool
+    phase: SetupPhase
+    checklist: SetupChecklist
 
 
 class SetupRequest(ApiRequest):

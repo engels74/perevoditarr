@@ -253,7 +253,7 @@ def create_app(settings: AppSettings | None = None) -> Litestar:
         header_name="x-csrftoken",
         cookie_httponly=False,  # the SPA reads it to echo the header
         exclude=[
-            "^/api/v1/setup",
+            "^/api/v1/setup/?$",
             "^/api/v1/auth/login$",
             "^/api/v1/auth/oidc",
             "^/api/v1/webhooks/ingest",
@@ -785,6 +785,13 @@ def create_app(settings: AppSettings | None = None) -> Litestar:
             "watch_service": Provide(provide_watch_service),
             "webhook_service": Provide(provide_webhook_service),
             "webhook_runtime": Provide(provide_webhook_runtime, sync_to_thread=False),
+        },
+        signature_namespace={
+            # SetupController injects these sibling-module services but only
+            # imports them under TYPE_CHECKING (avoids an import cycle), so the
+            # forward references need resolving here at signature-build time.
+            "InstancesService": InstancesService,
+            "NotificationsService": NotificationsService,
         },
         openapi_config=OpenAPIConfig(
             title="Perevoditarr API",

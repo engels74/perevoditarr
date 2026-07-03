@@ -89,6 +89,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/setup/finish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Finish */
+        post: operations["finishSetup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/setup/status": {
         parameters: {
             query?: never;
@@ -2554,6 +2571,13 @@ export interface components {
             episodeCount: number;
             wantedCount: number;
         };
+        /** SetupChecklist */
+        SetupChecklist: {
+            hasAdmin: boolean;
+            bazarrCount: number;
+            lingarrCount: number;
+            notificationCount: number;
+        };
         /** SetupRequest */
         SetupRequest: {
             username: string;
@@ -2565,6 +2589,10 @@ export interface components {
         SetupStatus: {
             required: boolean;
             bootstrapRequired: boolean;
+            completed: boolean;
+            /** @enum {string} */
+            phase: "admin" | "bazarr" | "lingarr" | "policy" | "notifications" | "finish" | "done";
+            checklist: components["schemas"]["SetupChecklist"];
         };
         /** StatsOverviewResponse */
         StatsOverviewResponse: {
@@ -3047,6 +3075,26 @@ export interface operations {
                             [key: string]: unknown;
                         } | unknown[];
                     };
+                };
+            };
+        };
+    };
+    finishSetup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Document created, URL follows */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SetupStatus"];
                 };
             };
         };

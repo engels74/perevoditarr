@@ -21,7 +21,12 @@ from perevoditarr.core.errors import (
 )
 from perevoditarr.core.logging import get_logger
 from perevoditarr.core.security import SecretBox
-from perevoditarr.modules.auth.models import ApiKey, AuthProviderConfig, User
+from perevoditarr.modules.auth.models import (
+    ApiKey,
+    AppSetupState,
+    AuthProviderConfig,
+    User,
+)
 from perevoditarr.modules.auth.schemas import (
     ForwardAuthProviderSettings,
     LdapProviderSettings,
@@ -72,6 +77,25 @@ class AuthService:
     async def user_count(self) -> int:
         result = await self.session.scalar(select(func.count(User.id)))
         return result or 0
+
+    # --- setup state (durable first-run completion flag) -----------------
+
+    async def get_setup_completed(self) -> bool:
+        """True iff the singleton app_setup_state row exists with completed_at set.
+
+        Absence of the row (or a NULL completed_at) means setup is not complete.
+        """
+        row = await self.session.get(AppSetupState, 1)
+        return row is not None and row.completed_at is not None
+
+    async def mark_setup_completed(self) -> None:
+        """Durably mark first-run setup complete (idempotent upsert on id=1)."""
+        row = await self.session.get(AppSetupState, 1)
+        if row is None:
+            self.session.add(AppSetupState(id=1, completed_at=datetime.now(UTC)))
+        elif row.completed_at is None:
+            row.completed_at = datetime.now(UTC)
+        await self.session.commit()
 
     async def create_initial_admin(
         self, *, username: str, password: str, email: str | None

@@ -28,10 +28,19 @@ class TestSetupFlow:
     ) -> None:
         status = client.get("/api/v1/setup/status")
         assert status.status_code == 200
-        assert json_obj(status) == {"required": True, "bootstrapRequired": True}
+        status_body = json_obj(status)
+        assert status_body["required"] is True
+        assert status_body["bootstrapRequired"] is True
+        assert status_body["completed"] is False
+        assert status_body["phase"] == "admin"
+        # A non-allow-listed /api path is gated (403 setup-required) pre-setup...
+        gated = client.get("/api/v1/rails/status")
+        assert gated.status_code == 403
+        assert json_obj(gated)["code"] == "setup-required"
+        # ...while an allow-listed prefix (auth) passes the gate and hits JWT
+        # auth instead: unauthenticated -> 401, not 403 setup-required.
         blocked = client.get("/api/v1/auth/me")
-        assert blocked.status_code == 403
-        assert json_obj(blocked)["code"] == "setup-required"
+        assert blocked.status_code == 401
 
     def test_setup_creates_admin_and_logs_in(
         self, client: TestClient[Litestar]
@@ -43,7 +52,11 @@ class TestSetupFlow:
         assert me_body["username"] == ADMIN_USERNAME
         assert me_body["isAdmin"] is True
         status = client.get("/api/v1/setup/status")
-        assert json_obj(status) == {"required": False, "bootstrapRequired": False}
+        status_body = json_obj(status)
+        assert status_body["required"] is False
+        assert status_body["bootstrapRequired"] is False
+        assert status_body["completed"] is True
+        assert status_body["phase"] == "done"
 
     def test_setup_locks_out_after_first_user(
         self, client: TestClient[Litestar]
@@ -62,7 +75,9 @@ class TestSetupFlow:
         assert again.status_code == 403
         assert json_obj(again)["code"] == "invalid-bootstrap-token"
         status = client.get("/api/v1/setup/status")
-        assert json_obj(status) == {"required": False, "bootstrapRequired": False}
+        status_body = json_obj(status)
+        assert status_body["required"] is False
+        assert status_body["completed"] is True
 
     def test_setup_missing_token_is_rejected(
         self, client: TestClient[Litestar]

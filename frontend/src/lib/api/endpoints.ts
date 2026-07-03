@@ -49,6 +49,7 @@ import type {
 	RailStatusDto,
 	RailsOverview,
 	SeriesRead,
+	SetupStatus,
 	StatsOverviewResponse,
 	SyncRunRead,
 	TelemetryHealthResponse,
@@ -81,6 +82,16 @@ function qs(params: Record<string, string | number | boolean | undefined | null>
 	}
 	const encoded = search.toString();
 	return encoded ? `?${encoded}` : '';
+}
+
+// --- Setup ------------------------------------------------------------------
+
+export function getSetupStatus(fetchFn: FetchLike = fetch): Promise<SetupStatus> {
+	return apiFetch<SetupStatus>('/api/v1/setup/status', {}, fetchFn);
+}
+
+export function finishSetup(fetchFn: FetchLike = fetch): Promise<SetupStatus> {
+	return apiFetch<SetupStatus>('/api/v1/setup/finish', { method: 'POST', body: '{}' }, fetchFn);
 }
 
 // --- Mirror -----------------------------------------------------------------

@@ -107,9 +107,16 @@ fi
 
 # --- load env file ----------------------------------------------------------
 
-# Parse KEY=value lines and export them, without clobbering variables already
-# present in the environment (shell/CLI wins over the file). Sourcing is avoided
-# on purpose so a `.env` can never execute shell code.
+# Parse KEY=value lines into this script's own (unexported) shell variables,
+# without clobbering variables already present in the environment (shell/CLI
+# wins over the file). They stay unexported on purpose: start.sh only needs them
+# to resolve its own BACKEND_HOST/BACKEND_PORT/FRONTEND_PORT (re-exported
+# explicitly below), and both children re-read the same `.env` natively — the
+# backend via core.env.load_dotenv_files (which owns the documented
+# backend/.env-over-root precedence) and the frontend via Vite's loadEnv.
+# Exporting the root-`.env` keys into the backend child would make them look
+# like real environment variables and suppress backend/.env's overrides.
+# Sourcing is avoided on purpose so a `.env` can never execute shell code.
 load_env_file() {
 	local file="$1" line key value q rest
 	[[ -f "$file" ]] || { log "no env file at ${file} (using defaults)"; return 0; }
@@ -135,11 +142,12 @@ load_env_file() {
 		fi
 		value="${value#"${value%%[![:space:]]*}"}"     # ltrim value
 		value="${value%"${value##*[![:space:]]}"}"     # rtrim value
-		# Match core/env.py's _unquote byte-for-byte (this loader exports values
-		# that then take precedence over the backend's own parse): a quoted value
-		# with a closing quote keeps its inner content and drops anything after
-		# that quote. An unquoted value, or an unterminated quote (which _unquote
-		# treats as unquoted), instead has a trailing ` #` inline comment stripped.
+		# Match core/env.py's _unquote byte-for-byte so start.sh reads the same
+		# value from a quoted/commented line that the backend and Vite do: a quoted
+		# value with a closing quote keeps its inner content and drops anything
+		# after that quote. An unquoted value, or an unterminated quote (which
+		# _unquote treats as unquoted), instead has a trailing ` #` inline comment
+		# stripped.
 		if [[ "$value" == \"* || "$value" == \'* ]] \
 			&& q="${value:0:1}" rest="${value:1}" \
 			&& [[ "$rest" == *"$q"* ]]; then
@@ -150,7 +158,11 @@ load_env_file() {
 		fi
 		# Do not override an already-set variable.
 		[[ -n "${!key+x}" ]] && continue
-		export "${key}=${value}"
+		# `declare -g` (not `export`): set a script-global shell variable without
+		# leaking it into the child services' environment. `-g` also forces global
+		# scope from inside this function and, unlike a bare assignment, can't be
+		# shadowed by one of the locals above.
+		declare -g "${key}=${value}"
 	done <"$file"
 }
 

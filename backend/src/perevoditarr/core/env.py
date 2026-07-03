@@ -101,9 +101,10 @@ def parse_env_file(text: str) -> dict[str, str]:
 def load_dotenv_files(paths: Iterable[Path] | None = None) -> None:
     """Fill ``os.environ`` from the candidate ``.env`` files, without override.
 
-    Idempotent and best-effort: a missing, unreadable, or non-UTF-8 file — or an
-    individual entry that ``os.environ`` rejects (e.g. an embedded NUL byte) — is
-    skipped silently. ``os.environ.setdefault`` guarantees the real environment
+    Idempotent and best-effort: a missing, unreadable, or non-UTF-8 file, a
+    candidate whose path cannot be resolved, or an individual entry that
+    ``os.environ`` rejects (e.g. an embedded NUL byte) — is skipped silently.
+    ``os.environ.setdefault`` guarantees the real environment
     (and any earlier, more-specific file) always wins. ``paths`` defaults to
     :func:`_candidate_paths`; it is an injectable seam for tests.
     """
@@ -112,7 +113,12 @@ def load_dotenv_files(paths: Iterable[Path] | None = None) -> None:
     for path in resolved_candidates:
         try:
             resolved = path.resolve()
-        except OSError:
+        except OSError, ValueError:
+            # ``Path.resolve`` raises ``ValueError`` (not an ``OSError``) for a
+            # malformed path-like string — e.g. an embedded NUL byte. Skip it so
+            # a bad candidate can never abort this best-effort loader. Only
+            # reachable via an injected ``paths=`` seam; a real env-var or
+            # filesystem candidate cannot carry a NUL.
             continue
         if resolved in seen:
             continue

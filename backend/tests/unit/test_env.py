@@ -102,6 +102,23 @@ def test_nul_byte_entry_is_skipped_and_neighbors_load(
         _ = os.environ.pop(ok_key, None)
 
 
+def test_nul_in_candidate_path_is_skipped_not_raised(tmp_path: Path) -> None:
+    # ``Path.resolve`` raises ``ValueError`` (not an ``OSError``) on an embedded
+    # NUL. A malformed candidate path must be skipped best-effort so it cannot
+    # abort the load; a valid neighbour still contributes. Reachable only via
+    # this injected ``paths=`` seam — no real env/filesystem candidate has a NUL.
+    ok_key = "PEREV_TEST_PATH_OK"
+    good_env = tmp_path / "good.env"
+    _ = good_env.write_text(f"{ok_key}=ok\n")
+
+    _ = os.environ.pop(ok_key, None)
+    try:
+        load_dotenv_files(paths=[Path("bad\x00path.env"), good_env])  # must not raise
+        assert os.environ[ok_key] == "ok"
+    finally:
+        _ = os.environ.pop(ok_key, None)
+
+
 def test_env_file_override_is_loaded(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

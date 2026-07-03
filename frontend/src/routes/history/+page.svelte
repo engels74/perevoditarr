@@ -1,6 +1,7 @@
 <script lang="ts">
 import { getIntent, listBazarrInstances, listIntents } from '$lib/api/endpoints';
 import type { BazarrInstanceRead } from '$lib/api/types';
+import ItemTimeline from '$lib/components/item-timeline.svelte';
 import TraceRail from '$lib/components/trace-rail.svelte';
 import { Badge } from '$lib/components/ui/badge';
 import { Button } from '$lib/components/ui/button';
@@ -258,6 +259,10 @@ function rangeLabel(): string {
 						{/each}
 					</Table.Body>
 				</Table.Root>
+			</section>
+
+			<section class="space-y-1">
+				<ItemTimeline intentId={detail.intent.id} />
 			</section>
 		{/if}
 	</Dialog.Content>

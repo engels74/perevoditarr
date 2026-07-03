@@ -21,6 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from perevoditarr.core.security import SecretBox
 from perevoditarr.core.sse import SseBus
+from perevoditarr.modules.dispatch.estimation import estimate_intent
 from perevoditarr.modules.dispatch.planning import DEFAULT_DISPATCH_WINDOW_K
 from perevoditarr.modules.instances import (
     BazarrInstance,
@@ -57,6 +58,7 @@ from perevoditarr.modules.rails.windows import (
     encode_windows,
     window_open_at,
 )
+from perevoditarr.modules.stats.reconciliation import effective_actuals
 
 
 class BreakerTransition(msgspec.Struct, frozen=True, kw_only=True):
@@ -183,10 +185,24 @@ class RailsService:
             return instance_windows
         return decode_windows(global_row.scheduling_windows)
 
+    async def _characters_per(self, bazarr_instance_id: UUID) -> dict[str, int] | None:
+        """Per-media character estimate from reconciled Lingarr actuals (P4-T1),
+        or None to fall back to the conservative heuristic."""
+        actuals = await effective_actuals(
+            self.session, bazarr_instance_id=bazarr_instance_id
+        )
+        if actuals is None:
+            return None
+        return {
+            "episode": estimate_intent("episode", actuals).characters,
+            "movie": estimate_intent("movie", actuals).characters,
+        }
+
     async def _usage(self, bazarr_instance_id: UUID, *, now: datetime) -> RailUsage:
         hour = now - timedelta(hours=1)
         day = now - timedelta(days=1)
         week = now - timedelta(days=7)
+        characters_per = await self._characters_per(bazarr_instance_id)
         return RailUsage(
             hour_dispatches=await dispatch_count_since(
                 self.session, hour, bazarr_instance_id=bazarr_instance_id
@@ -198,7 +214,10 @@ class RailsService:
                 self.session, week, bazarr_instance_id=bazarr_instance_id
             ),
             day_characters=await dispatch_characters_since(
-                self.session, day, bazarr_instance_id=bazarr_instance_id
+                self.session,
+                day,
+                bazarr_instance_id=bazarr_instance_id,
+                characters_per=characters_per,
             ),
         )
 

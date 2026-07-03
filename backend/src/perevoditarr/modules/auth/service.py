@@ -14,13 +14,18 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
-from perevoditarr.core.errors import ConflictError, NotFoundError
+from perevoditarr.core.errors import (
+    ConflictError,
+    DomainValidationError,
+    NotFoundError,
+)
 from perevoditarr.core.logging import get_logger
 from perevoditarr.core.security import SecretBox
 from perevoditarr.modules.auth.models import ApiKey, AuthProviderConfig, User
 from perevoditarr.modules.auth.schemas import (
     ForwardAuthProviderSettings,
     OidcProviderSettings,
+    Password,
 )
 
 _logger = get_logger()
@@ -40,6 +45,22 @@ def _hash_api_key(raw: str) -> str:
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
+def _validate_password(password: str) -> None:
+    """Reject empty, whitespace-only, or out-of-policy passwords before hashing.
+
+    Shared by every credential-creation path so the admin CLI enforces the same
+    rule as the HTTP /setup DTO (auth.schemas.Password). Without it, argon2 will
+    happily hash "" or "   ", persisting an admin with a trivial credential.
+    """
+    if not password.strip():
+        raise DomainValidationError("password must not be empty or whitespace-only")
+    try:
+        # msgspec.convert against an Annotated alias is typed as Any by the stub.
+        _ = msgspec.convert(password, type=Password)  # pyright: ignore[reportAny]
+    except msgspec.ValidationError as error:
+        raise DomainValidationError(f"password rejected: {error}") from error
+
+
 class AuthService:
     def __init__(self, session: AsyncSession) -> None:
         self.session: AsyncSession = session
@@ -53,6 +74,7 @@ class AuthService:
     async def create_initial_admin(
         self, *, username: str, password: str, email: str | None
     ) -> User:
+        _validate_password(password)
         if await self.user_count() > 0:
             raise ConflictError("setup already completed: a user exists")
         password_hash = await asyncio.to_thread(_hasher.hash, password)
@@ -61,6 +83,33 @@ class AuthService:
             email=email,
             password_hash=password_hash,
             is_admin=True,
+        )
+        self.session.add(user)
+        await self.session.commit()
+        return user
+
+    async def create_user(
+        self,
+        *,
+        username: str,
+        password: str,
+        email: str | None = None,
+        is_admin: bool = True,
+    ) -> User:
+        """Create a user (admin CLI, P4-T3). Unlike create_initial_admin this has
+        no first-run guard, but it still rejects a duplicate username."""
+        _validate_password(password)
+        existing = (
+            await self.session.scalars(select(User.id).where(User.username == username))
+        ).first()
+        if existing is not None:
+            raise ConflictError(f"a user named {username!r} already exists")
+        password_hash = await asyncio.to_thread(_hasher.hash, password)
+        user = User(
+            username=username,
+            email=email,
+            password_hash=password_hash,
+            is_admin=is_admin,
         )
         self.session.add(user)
         await self.session.commit()

@@ -16,6 +16,8 @@ from perevoditarr.modules.intents.controllers import (
     IntentsController,
     provide_discovery_service,
     provide_intents_service,
+    provide_passthrough_service,
+    provide_timeline_service,
 )
 from perevoditarr.modules.intents.discovery import (
     DiscoveryRunSummary,
@@ -59,7 +61,12 @@ from perevoditarr.modules.intents.failure import (
     is_environmental_message,
     retry_backoff_seconds,
 )
-from perevoditarr.modules.intents.models import Intent, IntentEvent
+from perevoditarr.modules.intents.models import (
+    Intent,
+    IntentEvent,
+    PassthroughAction,
+)
+from perevoditarr.modules.intents.passthrough import PassthroughService
 from perevoditarr.modules.intents.quarantine import (
     QuarantineController,
     QuarantineService,
@@ -76,6 +83,8 @@ from perevoditarr.modules.intents.schemas import (
     IntentDetail,
     IntentEventRead,
     IntentRead,
+    PassthroughActionRead,
+    TimelineResponse,
 )
 from perevoditarr.modules.intents.service import (
     IntentMediaType,
@@ -96,6 +105,7 @@ from perevoditarr.modules.intents.state_machine import (
     can_manual_transition,
     can_transition,
 )
+from perevoditarr.modules.intents.timeline import TimelineService
 from perevoditarr.modules.intents.trace import (
     BlockedByRail,
     Dispatched,
@@ -155,6 +165,9 @@ __all__ = [
     "NeedsAttention",
     "NoChange",
     "NotPlanned",
+    "PassthroughAction",
+    "PassthroughActionRead",
+    "PassthroughService",
     "Planned",
     "PriorityAssigned",
     "ProfileMatched",
@@ -171,6 +184,8 @@ __all__ = [
     "Supersede",
     "SupersededOther",
     "TargetMissing",
+    "TimelineResponse",
+    "TimelineService",
     "TraceStep",
     "WantedCandidate",
     "Withdrawn",
@@ -193,7 +208,9 @@ __all__ = [
     "matching_lingarr_records_movie",
     "provide_discovery_service",
     "provide_intents_service",
+    "provide_passthrough_service",
     "provide_quarantine_service",
+    "provide_timeline_service",
     "reconcile_loop",
     "render_human",
     "render_step",

@@ -341,20 +341,20 @@ These are distilled from the rules files and PRD §2/§6. Violations are review 
 ## Phase 4 — M3 Insight & polish
 
 ### P4-T1 · Statistics & budget reconciliation (FR-U8)
-- [ ] Stats module: throughput, durations, failure rates by class, converged vs. superseded, per-language coverage trends; efficient rollup tables (avoid heavy aggregate queries at request time).
-- [ ] Budget reconciliation: periodic pull of Lingarr statistics; estimates vs. actuals correction feeding the estimator (P2-T5) and budget rails.
-- [ ] Stats API + dashboard charts (frontend charting per shadcn/uno-compatible lib chosen in tech design).
+- [x] Stats module: throughput, durations, failure rates by class, converged vs. superseded, per-language coverage trends; efficient rollup tables (avoid heavy aggregate queries at request time).
+- [x] Budget reconciliation: periodic pull of Lingarr statistics; estimates vs. actuals correction feeding the estimator (P2-T5) and budget rails.
+- [x] Stats API + dashboard charts (frontend charting per shadcn/uno-compatible lib chosen in tech design).
 
 ### P4-T2 · Timelines & pass-through (FR-V4, FR-X3)
-- [ ] Per-item timeline API stitching intent events + Lingarr request states + Bazarr history; timeline UI on item detail.
-- [ ] Lingarr pass-through actions in UI (cancel/retry/resume/remove) mapped 1:1, clearly labeled as acting on Lingarr; audit-logged.
+- [x] Per-item timeline API stitching intent events + Lingarr request states + Bazarr history; timeline UI on item detail.
+- [x] Lingarr pass-through actions in UI (cancel/retry/resume/remove) mapped 1:1, clearly labeled as acting on Lingarr; audit-logged.
 
 ### P4-T3 · Operability & release
-- [ ] Prometheus-style metrics endpoint (NFR-6): intents by state, dispatch rates, rail states, sync durations, stream health.
-- [ ] Admin CLI polish (`perevoditarr` entrypoints: create-user, run-doctor, resync, export-config).
-- [ ] Docs site content: install (compose for Postgres + SQLite), onboarding walkthrough (Observe → plan → activate), preset sharing guide, doctor reference, API guide (Scalar link), troubleshooting (incl. Lingarr-automation conflict explainer).
-- [ ] Release engineering: versioned images (ghcr), changelog automation, SQLite ceiling guidance from perf data (resolves PRD open question #4).
-- [ ] v1.0 release checklist: PRD success metrics 1–6 verified and recorded.
+- [x] Prometheus-style metrics endpoint (NFR-6): intents by state, dispatch rates, rail states, sync durations, stream health.
+- [x] Admin CLI polish (`perevoditarr` entrypoints: create-user, run-doctor, resync, export-config).
+- [x] Docs site content: install (compose for Postgres + SQLite), onboarding walkthrough (Observe → plan → activate), preset sharing guide, doctor reference, API guide (Scalar link), troubleshooting (incl. Lingarr-automation conflict explainer).
+- [x] Release engineering: versioned images (ghcr), changelog automation, SQLite ceiling guidance from perf data (resolves PRD open question #4).
+- [x] v1.0 release checklist: PRD success metrics 1–6 verified and recorded.
 
 ---
 

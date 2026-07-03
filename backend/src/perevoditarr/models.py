@@ -8,7 +8,11 @@ here as they land.
 from perevoditarr.modules.auth.models import ApiKey, AuthProviderConfig, User
 from perevoditarr.modules.doctor.models import DoctorFinding, DoctorRun
 from perevoditarr.modules.instances.models import BazarrInstance, LingarrInstance
-from perevoditarr.modules.intents.models import Intent, IntentEvent
+from perevoditarr.modules.intents.models import (
+    Intent,
+    IntentEvent,
+    PassthroughAction,
+)
 from perevoditarr.modules.mirror.models import (
     Episode,
     Movie,
@@ -26,6 +30,11 @@ from perevoditarr.modules.policy.models import (
     TranslationProfile,
 )
 from perevoditarr.modules.rails.models import RailState
+from perevoditarr.modules.stats.models import (
+    LingarrActuals,
+    StatsDaily,
+    StatsLanguageDaily,
+)
 
 __all__ = [
     "ApiKey",
@@ -37,14 +46,18 @@ __all__ = [
     "Exclusion",
     "Intent",
     "IntentEvent",
+    "LingarrActuals",
     "LingarrInstance",
     "Movie",
     "NotificationRoute",
     "Override",
+    "PassthroughAction",
     "Preset",
     "ProfileAssignment",
     "RailState",
     "Series",
+    "StatsDaily",
+    "StatsLanguageDaily",
     "Subtitle",
     "SyncRun",
     "TranslationProfile",

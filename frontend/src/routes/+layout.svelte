@@ -23,6 +23,7 @@ const NAV_ITEMS = [
 	{ href: '/queue', label: 'Queue' },
 	{ href: '/library', label: 'Library' },
 	{ href: '/history', label: 'History' },
+	{ href: '/stats', label: 'Stats' },
 	{ href: '/doctor', label: 'Doctor' },
 	{ href: '/settings/instances', label: 'Settings' }
 ];

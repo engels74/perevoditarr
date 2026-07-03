@@ -29,6 +29,7 @@ from litestar.static_files import (
 from litestar.types import ControllerRouterHandler, ExceptionHandlersMap
 from litestar_granian import GranianPlugin
 
+from perevoditarr.core.bootstrap import DEFAULT_TTL_MINUTES
 from perevoditarr.core.db import build_alchemy_config, build_sqlalchemy_plugin
 from perevoditarr.core.errors import PerevoditarrError, domain_exception_handler
 from perevoditarr.core.http import HttpClientRegistry
@@ -658,6 +659,30 @@ def create_app(settings: AppSettings | None = None) -> Litestar:
                 "auth provider configs unavailable at startup", error=str(error)
             )
 
+    async def _print_bootstrap_banner() -> None:
+        # First-run only: mint a short-lived token and surface it *only* here in
+        # the logs. Whoever can read the logs is the operator; the setup wizard
+        # requires this token to create the first admin. Best-effort — a failure
+        # here must never block boot (a restart re-mints while setup is pending).
+        try:
+            if await auth_runtime.is_setup_completed():
+                return
+            token = auth_runtime.bootstrap.create()
+        except Exception as error:
+            get_logger().warning("bootstrap token banner failed", error=str(error))
+            return
+        get_logger().warning(
+            "first-run setup required: bootstrap token issued",
+            bootstrap_token=token,
+            expires_in_minutes=DEFAULT_TTL_MINUTES,
+            setup_path="/setup",
+            note=(
+                "Enter this token in the first-run setup wizard to create the "
+                "admin account. It appears only in these logs, expires soon, and "
+                "is invalidated by a restart or a second worker."
+            ),
+        )
+
     api_v1 = Router(
         path="/api/v1",
         # Global role gate (FR-A6, ADR-0008): viewers get read-only access;
@@ -718,7 +743,7 @@ def create_app(settings: AppSettings | None = None) -> Litestar:
         # during its on_app_init, so the setup gate registers afterwards and
         # re-claims position 0 to run outermost (403 setup-required beats 401).
         on_app_init=[jwt_auth.on_app_init, _register_setup_gate],
-        on_startup=[_load_auth_providers],
+        on_startup=[_load_auth_providers, _print_bootstrap_banner],
         middleware=[
             request_id_middleware,
             DefineMiddleware(ApiKeyAwareCSRFMiddleware, config=csrf_config),

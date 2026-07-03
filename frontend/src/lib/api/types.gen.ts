@@ -2558,11 +2558,13 @@ export interface components {
         SetupRequest: {
             username: string;
             password: string;
+            bootstrapToken: string;
             email?: string | null;
         };
         /** SetupStatus */
         SetupStatus: {
             required: boolean;
+            bootstrapRequired: boolean;
         };
         /** StatsOverviewResponse */
         StatsOverviewResponse: {

@@ -28,6 +28,7 @@ from litestar.security.jwt import (
 )
 from litestar.types import ASGIApp, Receive, Scope, Send
 
+from perevoditarr.core.bootstrap import BootstrapTokenManager
 from perevoditarr.core.errors import PerevoditarrError
 from perevoditarr.core.security import (
     SecretBox,
@@ -76,6 +77,7 @@ class AuthRuntime:
         self.oidc: OidcProviderSettings | None = None
         self.ldap: LdapProviderSettings | None = None
         self._setup_completed: bool = False
+        self.bootstrap: BootstrapTokenManager = BootstrapTokenManager()
 
     async def refresh_providers(self) -> None:
         async with self.alchemy.get_session() as session:

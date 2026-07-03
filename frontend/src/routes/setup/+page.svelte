@@ -6,6 +6,7 @@ import * as Card from '$lib/components/ui/card';
 import { Input } from '$lib/components/ui/input';
 import { session } from '$lib/state/session.svelte';
 
+let bootstrapToken = $state('');
 let username = $state('');
 let email = $state('');
 let password = $state('');
@@ -15,6 +16,10 @@ let localError = $state<string | null>(null);
 async function submit(event: SubmitEvent) {
 	event.preventDefault();
 	localError = null;
+	if (bootstrapToken.trim() === '') {
+		localError = 'Enter the bootstrap token from the server logs';
+		return;
+	}
 	if (password !== confirmPassword) {
 		localError = 'Passwords do not match';
 		return;
@@ -26,6 +31,7 @@ async function submit(event: SubmitEvent) {
 	const created = await session.completeSetup({
 		username,
 		password,
+		bootstrapToken: bootstrapToken.trim(),
 		email: email.trim() === '' ? null : email.trim()
 	});
 	if (created) {
@@ -42,12 +48,27 @@ async function submit(event: SubmitEvent) {
 		<Card.Header>
 			<Card.Title>Welcome to Perevoditarr</Card.Title>
 			<Card.Description>
-				First-run setup — create the administrator account. Until this is done, the API only
-				accepts this request.
+				First-run setup — enter the bootstrap token from the server logs, then create the
+				administrator account. Until this is done, the API only accepts this request.
 			</Card.Description>
 		</Card.Header>
 		<Card.Content>
 			<form class="space-y-4" onsubmit={submit}>
+				<div class="space-y-2">
+					<label class="text-sm font-medium" for="bootstrap-token">Bootstrap token</label>
+					<Input
+						id="bootstrap-token"
+						name="bootstrapToken"
+						autocomplete="off"
+						placeholder="xxxx-xxxx-xxxx"
+						bind:value={bootstrapToken}
+						required
+					/>
+					<p class="text-xs text-muted-foreground">
+						Printed to the server logs at startup (e.g. <code>docker logs</code>). It expires 15
+						minutes after boot — restart the app to get a fresh one.
+					</p>
+				</div>
 				<div class="space-y-2">
 					<label class="text-sm font-medium" for="username">Username</label>
 					<Input

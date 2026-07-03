@@ -14,6 +14,7 @@ from litestar.security.jwt import Token
 from litestar.status_codes import HTTP_200_OK
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from perevoditarr.core.bootstrap import InvalidBootstrapTokenError
 from perevoditarr.core.errors import DomainValidationError
 from perevoditarr.core.http import HttpClientRegistry
 from perevoditarr.modules.auth.ldap import ldap_authenticate
@@ -80,7 +81,8 @@ class SetupController(Controller):
 
     @get("/status", exclude_from_auth=True, operation_id="getSetupStatus")
     async def status(self, auth_service: AuthService) -> SetupStatus:
-        return SetupStatus(required=await auth_service.user_count() == 0)
+        required = await auth_service.user_count() == 0
+        return SetupStatus(required=required, bootstrap_required=required)
 
     @post(
         "/",
@@ -95,10 +97,15 @@ class SetupController(Controller):
         auth_runtime: AuthRuntime,
         session_auth: SessionAuth,
     ) -> Response[UserRead]:
+        if not auth_runtime.bootstrap.validate(data.bootstrap_token):
+            raise InvalidBootstrapTokenError(
+                "bootstrap token is missing, incorrect, or expired"
+            )
         user = await auth_service.create_initial_admin(
             username=data.username, password=data.password, email=data.email
         )
         auth_runtime.mark_setup_completed()
+        auth_runtime.bootstrap.clear()
         return session_auth.login(
             identifier=str(user.id), response_body=_user_read(user)
         )

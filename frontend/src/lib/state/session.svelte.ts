@@ -7,6 +7,7 @@ import type { SetupStatus, UserRead } from '$lib/api/types';
 export interface SetupInput {
 	username: string;
 	password: string;
+	bootstrapToken: string;
 	email?: string | null;
 }
 
@@ -88,6 +89,7 @@ export function createSessionState(fetchFn: FetchLike = fetch) {
 					body: JSON.stringify({
 						username: input.username,
 						password: input.password,
+						bootstrapToken: input.bootstrapToken,
 						email: input.email ?? null
 					})
 				},

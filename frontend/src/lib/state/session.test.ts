@@ -116,7 +116,13 @@ describe('session state', () => {
 		);
 		await state.initialize();
 		expect(state.setupRequired).toBe(true);
-		expect(await state.completeSetup({ username: 'admin', password: 'long-enough-pw' })).toBe(true);
+		expect(
+			await state.completeSetup({
+				username: 'admin',
+				password: 'long-enough-pw',
+				bootstrapToken: 'abcd-efgh-ijkl'
+			})
+		).toBe(true);
 		expect(state.setupRequired).toBe(false);
 		expect(state.user?.username).toBe('admin');
 	});

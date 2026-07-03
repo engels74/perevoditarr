@@ -14,6 +14,8 @@ from tests.conftest import (
     ADMIN_USERNAME,
     TEST_SECRET,
     _create_schema,  # pyright: ignore[reportPrivateUsage]  # conftest's module-private schema provisioner, reused to build an isolated trusted-proxy app
+    bootstrap_token,
+    client_auth_runtime,
     complete_setup,
     csrf_headers,
 )
@@ -26,7 +28,7 @@ class TestSetupFlow:
     ) -> None:
         status = client.get("/api/v1/setup/status")
         assert status.status_code == 200
-        assert json_obj(status) == {"required": True}
+        assert json_obj(status) == {"required": True, "bootstrapRequired": True}
         blocked = client.get("/api/v1/auth/me")
         assert blocked.status_code == 403
         assert json_obj(blocked)["code"] == "setup-required"
@@ -41,22 +43,66 @@ class TestSetupFlow:
         assert me_body["username"] == ADMIN_USERNAME
         assert me_body["isAdmin"] is True
         status = client.get("/api/v1/setup/status")
-        assert json_obj(status) == {"required": False}
+        assert json_obj(status) == {"required": False, "bootstrapRequired": False}
 
     def test_setup_locks_out_after_first_user(
         self, client: TestClient[Litestar]
     ) -> None:
         complete_setup(client)
+        # The token is cleared on completion, so a replayed setup can no longer
+        # present a valid one — first-run setup is closed.
         again = client.post(
             "/api/v1/setup",
-            json={"username": "second", "password": "another-password-123"},
+            json={
+                "username": "second",
+                "password": "another-password-123",
+                "bootstrapToken": "aaaa-bbbb-cccc",
+            },
         )
-        assert again.status_code == 409
-        assert json_obj(again)["code"] == "conflict"
+        assert again.status_code == 403
+        assert json_obj(again)["code"] == "invalid-bootstrap-token"
+        status = client.get("/api/v1/setup/status")
+        assert json_obj(status) == {"required": False, "bootstrapRequired": False}
+
+    def test_setup_missing_token_is_rejected(
+        self, client: TestClient[Litestar]
+    ) -> None:
+        response = client.post(
+            "/api/v1/setup",
+            json={"username": "admin", "password": "another-password-123"},
+        )
+        # msgspec rejects the body: bootstrapToken is a required field.
+        assert response.status_code == 400
+
+    def test_setup_wrong_token_is_forbidden(self, client: TestClient[Litestar]) -> None:
+        response = client.post(
+            "/api/v1/setup",
+            json={
+                "username": "admin",
+                "password": "another-password-123",
+                "bootstrapToken": "aaaa-bbbb-cccc",
+            },
+        )
+        assert response.status_code == 403
+        assert json_obj(response)["code"] == "invalid-bootstrap-token"
+        # A rejected attempt must not have created a user.
+        assert json_obj(client.get("/api/v1/setup/status"))["required"] is True
+
+    def test_bootstrap_token_issued_and_cleared(
+        self, client: TestClient[Litestar]
+    ) -> None:
+        runtime = client_auth_runtime(client)
+        # Minted at startup while setup is incomplete...
+        assert runtime.bootstrap.current_token() is not None
+        complete_setup(client)
+        # ...and torn down once setup completes.
+        assert runtime.bootstrap.current_token() is None
 
     def test_weak_setup_password_rejected(self, client: TestClient[Litestar]) -> None:
+        token = bootstrap_token(client)
         response = client.post(
-            "/api/v1/setup", json={"username": "admin", "password": "short"}
+            "/api/v1/setup",
+            json={"username": "admin", "password": "short", "bootstrapToken": token},
         )
         assert response.status_code == 400
 

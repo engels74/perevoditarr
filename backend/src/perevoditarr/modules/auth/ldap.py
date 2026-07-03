@@ -75,9 +75,21 @@ def _bind_authenticate(
     # LDAP servers accept — a silent auth bypass. Reject it outright.
     if not password:
         return None
+    # StartTLS upgrades a plaintext link to TLS, so it is a no-op over an
+    # ldaps:// URI whose socket is already SSL-wrapped — and a *silent* one
+    # under ldap3's SYNC strategy (start_tls() returns False without raising).
+    # Skip it there and warn, so an admin who enabled both isn't left
+    # wondering why their StartTLS toggle does nothing; the connection stays
+    # TLS-encrypted via the initial SSL wrap regardless.
+    use_ssl = settings.server_uri.lower().startswith("ldaps://")
+    apply_start_tls = settings.start_tls and not use_ssl
+    if settings.start_tls and use_ssl:
+        _logger.warning(
+            "LDAP startTls ignored: server_uri is already ldaps:// (connection is already TLS-encrypted)"
+        )
     server = _make_server(
         settings.server_uri,
-        use_ssl=settings.server_uri.lower().startswith("ldaps://"),
+        use_ssl=use_ssl,
         get_info=None,
     )
     search_conn = _make_connection(
@@ -85,7 +97,7 @@ def _bind_authenticate(
         user=settings.bind_dn or None,
         password=settings.bind_password or None,
     )
-    if settings.start_tls:
+    if apply_start_tls:
         _ = search_conn.start_tls()
     if not search_conn.bind():
         search_conn.unbind()
@@ -109,7 +121,7 @@ def _bind_authenticate(
 
     # Re-bind as the located user to verify the supplied password.
     user_conn = _make_connection(server, user=user_dn, password=password)
-    if settings.start_tls:
+    if apply_start_tls:
         _ = user_conn.start_tls()
     authenticated = user_conn.bind()
     user_conn.unbind()

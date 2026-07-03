@@ -228,9 +228,11 @@ class WatchService:
             source.last_refreshed_at = moment
             self._store_health(source, WatchSourceProbe(reachable=True), moment)
         polled = len(sources)
-        # All enabled sources failed: keep the existing cache, let the TTL age it
-        # out rather than blanking every boost on a transient outage.
-        if sources and not activity_by_source:
+        # Nothing fetched this cycle -- every enabled source failed, or none are
+        # enabled at all. Keep the existing cache and let the TTL age it out
+        # rather than blanking every boost on a transient outage or a routine
+        # maintenance toggle.
+        if not activity_by_source:
             await self.session.commit()
             return WatchRefreshResult(
                 sources_polled=polled, sources_failed=failed, titles_scored=0

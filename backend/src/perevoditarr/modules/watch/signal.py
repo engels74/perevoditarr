@@ -62,7 +62,7 @@ def aggregate_activity(
     acc: dict[_Key, _Accumulator] = {}
     for source_name, activities in activity_by_source.items():
         for item in activities:
-            year = item.year or 0 if item.media_type == "movie" else 0
+            year = (item.year or 0) if item.media_type == "movie" else 0
             key: _Key = (item.media_type, normalize_title(item.title), year)
             entry = acc.get(key)
             if entry is None:

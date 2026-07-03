@@ -131,52 +131,56 @@ fi
 # like real environment variables and suppress backend/.env's overrides.
 # Sourcing is avoided on purpose so a `.env` can never execute shell code.
 load_env_file() {
-	local file="$1" line key value q rest
-	[[ -f "$file" ]] || { log "no env file at ${file} (using defaults)"; return 0; }
-	log "loading env from ${file}"
-	while IFS= read -r line || [[ -n "$line" ]]; do
-		line="${line#"${line%%[![:space:]]*}"}"        # ltrim
-		[[ -z "$line" || "$line" == \#* ]] && continue
-		[[ "$line" == export\ * ]] && line="${line#export }"
-		[[ "$line" != *=* ]] && continue
-		key="${line%%=*}"
-		value="${line#*=}"
-		key="${key%"${key##*[![:space:]]}"}"           # rtrim key
-		key="${key#"${key%%[![:space:]]*}"}"           # ltrim key
+	local _ef_file="$1" _ef_line _ef_key _ef_value _ef_q _ef_rest
+	[[ -f "$_ef_file" ]] || { log "no env file at ${_ef_file} (using defaults)"; return 0; }
+	log "loading env from ${_ef_file}"
+	# Locals use a `_ef_` prefix so a lowercase `.env` key (e.g. `key=`, `value=`)
+	# can never collide with one of them at the `${!_ef_key+x}` already-set probe
+	# below and get silently dropped.
+	while IFS= read -r _ef_line || [[ -n "$_ef_line" ]]; do
+		_ef_line="${_ef_line#"${_ef_line%%[![:space:]]*}"}"     # ltrim
+		[[ -z "$_ef_line" || "$_ef_line" == \#* ]] && continue
+		[[ "$_ef_line" == export\ * ]] && _ef_line="${_ef_line#export }"
+		[[ "$_ef_line" != *=* ]] && continue
+		_ef_key="${_ef_line%%=*}"
+		_ef_value="${_ef_line#*=}"
+		_ef_key="${_ef_key%"${_ef_key##*[![:space:]]}"}"        # rtrim key
+		_ef_key="${_ef_key#"${_ef_key%%[![:space:]]*}"}"        # ltrim key
 		# Reject anything that is not a bare identifier BEFORE it reaches the
-		# indirect expansion / export below: `${!key}` re-parses a `name[expr]`
+		# indirect expansion / export below: `${!_ef_key}` re-parses a `name[expr]`
 		# key as an arithmetic subscript, which would execute command
 		# substitution embedded in the key. Validating here is what makes the
 		# "never execute shell code" guarantee actually hold (and it turns a
 		# malformed line into a skip+warn instead of a `set -e` abort).
-		if [[ ! "$key" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
-			warn "ignoring invalid env key: ${key}"
+		if [[ ! "$_ef_key" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
+			warn "ignoring invalid env key: ${_ef_key}"
 			continue
 		fi
-		value="${value#"${value%%[![:space:]]*}"}"     # ltrim value
-		value="${value%"${value##*[![:space:]]}"}"     # rtrim value
+		_ef_value="${_ef_value#"${_ef_value%%[![:space:]]*}"}"  # ltrim value
+		_ef_value="${_ef_value%"${_ef_value##*[![:space:]]}"}"  # rtrim value
 		# Match core/env.py's _unquote byte-for-byte so start.sh reads the same
 		# value from a quoted/commented line that the backend and Vite do: a quoted
 		# value with a closing quote keeps its inner content and drops anything
 		# after that quote. An unquoted value, or an unterminated quote (which
 		# _unquote treats as unquoted), instead has a trailing ` #` inline comment
 		# stripped.
-		if [[ "$value" == \"* || "$value" == \'* ]] \
-			&& q="${value:0:1}" rest="${value:1}" \
-			&& [[ "$rest" == *"$q"* ]]; then
-			value="${rest%%"$q"*}"
-		elif [[ "$value" == *" #"* ]]; then
-			value="${value%% #*}"
-			value="${value%"${value##*[![:space:]]}"}"   # rtrim after comment strip
+		if [[ "$_ef_value" == \"* || "$_ef_value" == \'* ]] \
+			&& _ef_q="${_ef_value:0:1}" _ef_rest="${_ef_value:1}" \
+			&& [[ "$_ef_rest" == *"$_ef_q"* ]]; then
+			_ef_value="${_ef_rest%%"$_ef_q"*}"
+		elif [[ "$_ef_value" == *" #"* ]]; then
+			_ef_value="${_ef_value%% #*}"
+			_ef_value="${_ef_value%"${_ef_value##*[![:space:]]}"}"   # rtrim after comment strip
 		fi
 		# Do not override an already-set variable.
-		[[ -n "${!key+x}" ]] && continue
-		# `declare -g` (not `export`): set a script-global shell variable without
-		# leaking it into the child services' environment. `-g` also forces global
-		# scope from inside this function and, unlike a bare assignment, can't be
-		# shadowed by one of the locals above.
-		declare -g "${key}=${value}"
-	done <"$file"
+		[[ -n "${!_ef_key+x}" ]] && continue
+		# `declare -g` (not `export`): set a global, unexported shell variable from
+		# inside this function so the host/port resolution below can read it, while
+		# keeping it out of the child services' environment (both children re-read
+		# `.env` themselves). `-g` is what promotes the assignment to global scope
+		# instead of leaving it a function-local.
+		declare -g "${_ef_key}=${_ef_value}"
+	done <"$_ef_file"
 }
 
 # Decide whether to hand the backend an explicit env-file override. Computed

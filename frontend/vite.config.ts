@@ -16,7 +16,8 @@ export default defineConfig(({ mode }) => {
 	const backendHost = env.BACKEND_HOST || 'localhost';
 	const backendPort = env.BACKEND_PORT || '8000';
 	const backendUrl = env.VITE_BACKEND_URL || `http://${backendHost}:${backendPort}`;
-	const frontendPort = Number(env.FRONTEND_PORT || env.PORT || '5173') || 5173;
+	const parsedPort = Number(env.FRONTEND_PORT || env.PORT || '5173');
+	const frontendPort = Number.isNaN(parsedPort) ? 5173 : parsedPort;
 
 	return {
 		// UnoCSS must run before sveltekit

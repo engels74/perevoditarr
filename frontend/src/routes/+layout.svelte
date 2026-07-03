@@ -7,7 +7,7 @@ import { ModeWatcher } from 'mode-watcher';
 import { goto } from '$app/navigation';
 import { page } from '$app/state';
 import { getTelemetryHealth } from '$lib/api/endpoints';
-import favicon from '$lib/assets/favicon.svg';
+import Logo from '$lib/components/logo.svelte';
 import ThemeToggle from '$lib/components/theme-toggle.svelte';
 import { session } from '$lib/state/session.svelte';
 import { sse } from '$lib/state/sse.svelte';
@@ -90,7 +90,7 @@ async function signOut() {
 </script>
 
 <svelte:head>
-	<link rel="icon" href={favicon} />
+	<link rel="icon" href="/perevoditarr-logo.svg" />
 	<title>Perevoditarr</title>
 </svelte:head>
 
@@ -107,7 +107,12 @@ async function signOut() {
 	<div class="min-h-screen bg-background text-foreground">
 		<header class="flex items-center justify-between border-b px-6 py-3">
 			<div class="flex items-center gap-6">
-				<span class="text-lg font-semibold">Perevoditarr</span>
+				<a
+					href="/"
+					class="flex items-center rounded-sm outline-none transition-opacity hover:opacity-80 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+				>
+					<Logo size={24} />
+				</a>
 				<nav class="flex items-center gap-1">
 					{#each NAV_ITEMS as item (item.href)}
 						<a

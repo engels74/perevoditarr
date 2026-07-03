@@ -1,5 +1,6 @@
 <script lang="ts">
 import { goto } from '$app/navigation';
+import Logo from '$lib/components/logo.svelte';
 import { Button } from '$lib/components/ui/button';
 import * as Card from '$lib/components/ui/card';
 import { Input } from '$lib/components/ui/input';
@@ -33,7 +34,10 @@ async function submit(event: SubmitEvent) {
 }
 </script>
 
-<div class="flex min-h-screen items-center justify-center p-6">
+<div class="flex min-h-screen flex-col items-center justify-center gap-8 p-6">
+	<div class="brand-enter">
+		<Logo size={52} wordmark={false} />
+	</div>
 	<Card.Root class="w-full max-w-md">
 		<Card.Header>
 			<Card.Title>Welcome to Perevoditarr</Card.Title>

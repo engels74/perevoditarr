@@ -85,3 +85,27 @@ body {
 	font-family: var(--font-sans);
 	letter-spacing: var(--letter-spacing);
 }
+
+/* One-time brand entrance for the auth screens (login / setup) — the single
+   motion accent in an otherwise static, minimal UI. Motion is suppressed for
+   users who prefer reduced motion. */
+@keyframes brand-enter {
+	from {
+		opacity: 0;
+		transform: translateY(6px) scale(0.98);
+	}
+	to {
+		opacity: 1;
+		transform: none;
+	}
+}
+
+.brand-enter {
+	animation: brand-enter 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.brand-enter {
+		animation: none;
+	}
+}

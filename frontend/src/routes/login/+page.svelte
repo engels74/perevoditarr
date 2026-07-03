@@ -2,6 +2,7 @@
 import { goto } from '$app/navigation';
 import { apiFetch } from '$lib/api/client';
 import type { LoginProviders } from '$lib/api/types';
+import Logo from '$lib/components/logo.svelte';
 import { Button } from '$lib/components/ui/button';
 import * as Card from '$lib/components/ui/card';
 import { Input } from '$lib/components/ui/input';
@@ -27,7 +28,10 @@ async function submit(event: SubmitEvent) {
 }
 </script>
 
-<div class="flex min-h-screen items-center justify-center p-6">
+<div class="flex min-h-screen flex-col items-center justify-center gap-8 p-6">
+	<div class="brand-enter">
+		<Logo size={52} wordmark={false} />
+	</div>
 	<Card.Root class="w-full max-w-sm">
 		<Card.Header>
 			<Card.Title>Sign in</Card.Title>

@@ -77,6 +77,31 @@ def test_missing_files_are_skipped_silently(tmp_path: Path) -> None:
     load_dotenv_files(paths=[tmp_path / "does-not-exist.env"])  # must not raise
 
 
+@pytest.mark.parametrize(
+    "bad_line",
+    [b"PEREV_TEST_BAD=bad\x00value\n", b"PEREV_TEST\x00BAD=value\n"],
+    ids=["nul-in-value", "nul-in-key"],
+)
+def test_nul_byte_entry_is_skipped_and_neighbors_load(
+    bad_line: bytes, tmp_path: Path
+) -> None:
+    # A NUL byte is valid UTF-8 (0x00), so ``read_text`` succeeds, but
+    # ``os.environ`` rejects it (``ValueError: embedded null byte``). The
+    # malformed entry must be skipped best-effort — it must not abort the load,
+    # so the following valid key still applies. Uses the real ``os.environ``
+    # because a plain dict would not reproduce the rejection.
+    ok_key = "PEREV_TEST_NUL_OK"
+    env_file = tmp_path / "bad.env"
+    _ = env_file.write_bytes(bad_line + f"{ok_key}=ok\n".encode())
+
+    _ = os.environ.pop(ok_key, None)
+    try:
+        load_dotenv_files(paths=[env_file])  # must not raise
+        assert os.environ[ok_key] == "ok"
+    finally:
+        _ = os.environ.pop(ok_key, None)
+
+
 def test_env_file_override_is_loaded(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

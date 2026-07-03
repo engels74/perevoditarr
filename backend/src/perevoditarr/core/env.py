@@ -101,7 +101,8 @@ def parse_env_file(text: str) -> dict[str, str]:
 def load_dotenv_files(paths: Iterable[Path] | None = None) -> None:
     """Fill ``os.environ`` from the candidate ``.env`` files, without override.
 
-    Idempotent and best-effort: a missing, unreadable, or non-UTF-8 file is
+    Idempotent and best-effort: a missing, unreadable, or non-UTF-8 file — or an
+    individual entry that ``os.environ`` rejects (e.g. an embedded NUL byte) — is
     skipped silently. ``os.environ.setdefault`` guarantees the real environment
     (and any earlier, more-specific file) always wins. ``paths`` defaults to
     :func:`_candidate_paths`; it is an injectable seam for tests.
@@ -121,4 +122,11 @@ def load_dotenv_files(paths: Iterable[Path] | None = None) -> None:
         except OSError, UnicodeDecodeError:
             continue
         for key, value in parse_env_file(text).items():
-            _ = os.environ.setdefault(key, value)
+            try:
+                _ = os.environ.setdefault(key, value)
+            except ValueError:
+                # An embedded NUL byte in a key or value makes ``setdefault``
+                # raise ``ValueError: embedded null byte``. Skip just that entry
+                # so one malformed line can't abort the whole best-effort load —
+                # valid keys on other lines still apply. No value is logged.
+                continue

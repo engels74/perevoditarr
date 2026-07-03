@@ -811,12 +811,21 @@ def create_app(settings: AppSettings | None = None) -> Litestar:
     )
 
 
+_app: Litestar | None = None
+
+
 def __getattr__(name: str) -> Litestar:
     # Build the ASGI ``app`` lazily, only when the attribute is actually
     # resolved (``LITESTAR_APP=perevoditarr.app:app`` at real server start).
     # Merely importing this module — e.g. ``from perevoditarr.app import
     # create_app`` in tests and tools — must not run ``create_app()``, so it
     # must not let ``load_settings`` hydrate ``.env`` into the real ``os.environ``.
+    # Memoize after the first access so ``app`` is a per-process singleton:
+    # repeated attribute resolutions reuse one Litestar instance instead of
+    # rebuilding the object graph (and its side effects) each time.
+    global _app
     if name == "app":
-        return create_app()
+        if _app is None:
+            _app = create_app()
+        return _app
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

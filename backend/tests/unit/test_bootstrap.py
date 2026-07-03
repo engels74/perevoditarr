@@ -90,6 +90,14 @@ def test_non_ascii_candidate_is_rejected_safely() -> None:
     assert manager.validate("aaaa-bbbb-ccc\u00e9") is False
 
 
+def test_lone_surrogate_candidate_is_rejected_safely() -> None:
+    manager = BootstrapTokenManager()
+    _ = manager.create()
+    # 14 characters with a lone surrogate (\ud800): plain UTF-8 encoding would
+    # raise UnicodeEncodeError, so validate() must still return False, never raise.
+    assert manager.validate("aaaa-bbbb-ccc\ud800") is False
+
+
 def test_token_expires_after_ttl() -> None:
     clock = _FakeClock()
     manager = BootstrapTokenManager(clock=clock)

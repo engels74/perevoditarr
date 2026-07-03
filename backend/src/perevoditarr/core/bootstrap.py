@@ -116,10 +116,13 @@ class BootstrapTokenManager:
             return False
         if len(candidate) != TOKEN_LENGTH:
             return False
-        # Compare as bytes so a non-ASCII candidate can never raise; a length
-        # mismatch there is handled safely by compare_digest.
+        # Compare as bytes so any candidate str can never raise. ``surrogatepass``
+        # covers lone surrogates (which plain UTF-8 encoding rejects with
+        # UnicodeEncodeError); a value mismatch there is handled safely by
+        # compare_digest, so a surrogate candidate returns False, never raises.
         return hmac.compare_digest(
-            candidate.encode("utf-8"), self._active.value.encode("utf-8")
+            candidate.encode("utf-8", "surrogatepass"),
+            self._active.value.encode("utf-8", "surrogatepass"),
         )
 
     def consume(self, candidate: str) -> bool:

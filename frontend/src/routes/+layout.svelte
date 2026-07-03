@@ -69,6 +69,18 @@ $effect(() => {
 	}
 	const path = page.url.pathname;
 	if (session.setupRequired) {
+		// Admin already exists but this client is signed out (no session cookie):
+		// the remaining wizard steps (Bazarr/Lingarr CRUD, /setup/finish) all
+		// require auth, so send them to /login instead of trapping them on /setup.
+		// A fresh install (no admin yet) still goes to /setup — that first step is
+		// token-gated and reachable unauthenticated. After login the effect reruns
+		// with setupRequired still true and routes back to /setup to resume.
+		if (session.user === null && session.setupChecklist?.hasAdmin) {
+			if (path !== '/login') {
+				void goto('/login');
+			}
+			return;
+		}
 		if (path !== '/setup') {
 			void goto('/setup');
 		}

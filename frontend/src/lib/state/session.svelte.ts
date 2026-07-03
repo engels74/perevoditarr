@@ -33,13 +33,18 @@ export function createSessionState(fetchFn: FetchLike = fetch) {
 			setupRequired = status.required;
 			setupPhase = status.phase;
 			setupChecklist = status.checklist;
-			if (!status.required) {
+			// Fetch the current user whenever an admin account exists (bootstrap no
+			// longer required), not only once setup is finished: a reload mid-wizard
+			// still carries a valid session cookie, and skipping /auth/me here would
+			// leave user===null and bounce the admin to /login right after Finish.
+			if (!status.bootstrapRequired) {
 				try {
 					user = await apiFetch<UserRead>('/api/v1/auth/me', {}, fetchFn);
 				} catch (cause) {
 					if (cause instanceof ApiError && (cause.isUnauthorized || cause.isSetupRequired)) {
 						user = null;
-						setupRequired = cause.isSetupRequired;
+						// A 401 here (no cookie yet) must not clear a still-required setup.
+						setupRequired = status.required || cause.isSetupRequired;
 					} else {
 						throw cause;
 					}

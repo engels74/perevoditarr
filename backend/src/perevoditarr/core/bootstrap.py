@@ -17,9 +17,10 @@ Design (mirrors the reference onboarding overview, adapted to this stack):
   gate) prevents timing side-channels from leaking the token character by
   character.
 
-Unlike the multi-step wizard the pattern originally came from, this setup is a
-single atomic request, so there is no separate persisted "setup claim" layer:
-the token is validated once, in the same request that finishes setup.
+The token is validated once, in the request that creates the first admin
+(``POST /api/v1/setup``) — a single atomic step, so there is no separate
+persisted "setup claim" layer. That request does not durably finish setup;
+completion is a later, admin-only step (``POST /api/v1/setup/finish``).
 """
 
 import hmac

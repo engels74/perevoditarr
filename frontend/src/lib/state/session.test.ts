@@ -68,7 +68,7 @@ describe('session state', () => {
 	test('initialize surfaces first-run setup', async () => {
 		const state = createSessionState(
 			fetchStub({
-				'GET /api/v1/setup/status': () => jsonResponse({ required: true, bootstrapRequired: true })
+				'GET /api/v1/setup/status': () => jsonResponse(statusBody('admin'))
 			})
 		);
 		await state.initialize();
@@ -81,7 +81,7 @@ describe('session state', () => {
 	test('initialize restores an existing session', async () => {
 		const state = createSessionState(
 			fetchStub({
-				'GET /api/v1/setup/status': () => jsonResponse({ required: false }),
+				'GET /api/v1/setup/status': () => jsonResponse(statusBody('done')),
 				'GET /api/v1/auth/me': () => jsonResponse(USER)
 			})
 		);
@@ -93,7 +93,7 @@ describe('session state', () => {
 	test('initialize treats 401 as signed-out, not an error', async () => {
 		const state = createSessionState(
 			fetchStub({
-				'GET /api/v1/setup/status': () => jsonResponse({ required: false }),
+				'GET /api/v1/setup/status': () => jsonResponse(statusBody('done')),
 				'GET /api/v1/auth/me': () =>
 					jsonResponse({ status: 401, code: 'unauthorized', title: 'Unauthorized' }, 401)
 			})

@@ -250,7 +250,7 @@ def setup_gate_middleware(app: ASGIApp) -> ASGIApp:
                 runtime = auth_runtime(scope["app"].state)
                 if not await runtime.is_setup_completed():
                     raise SetupRequiredError(
-                        "no user exists yet: complete /api/v1/setup first"
+                        "first-run setup is incomplete: complete /api/v1/setup first"
                     )
         await app(scope, receive, send)
 

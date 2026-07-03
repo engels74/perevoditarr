@@ -197,6 +197,9 @@ class SetupController(Controller):
             )
         await auth_service.mark_setup_completed()
         auth_runtime.mark_setup_completed()
+        # Mirror POST /setup: retire the startup bootstrap token on every
+        # completion path (idempotent when unminted/already cleared).
+        auth_runtime.bootstrap.clear()
         status = await _build_setup_status(
             auth_service=auth_service,
             auth_runtime=auth_runtime,

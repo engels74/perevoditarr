@@ -21,6 +21,7 @@ FRONTEND_DIR="${ROOT_DIR}/frontend"
 # --- defaults / options -----------------------------------------------------
 
 ENV_FILE="${ROOT_DIR}/.env"
+ENV_FILE_EXPLICIT=0        # set to 1 once the user passes --env-file (see below)
 RUN_BACKEND=1
 RUN_FRONTEND=1
 DO_INSTALL=1
@@ -55,20 +56,32 @@ OPTIONS:
         --no-install          Skip `uv sync` / `bun install`.
         --no-migrate          Skip `alembic upgrade head` before boot.
         --no-reload           Disable backend autoreload.
-        --env-file PATH       Env file to load (default: <repo>/.env).
+        --env-file PATH       Env file to load (default: <repo>/.env). See
+                              BEHAVIOR for exactly what it affects.
         --backend-host HOST   Backend bind host (default: 127.0.0.1).
         --backend-port PORT   Backend port (default: 8000).
         --frontend-port PORT  Frontend dev-server port (default: 5173).
     -h, --help                Show this help and exit.
 
 BEHAVIOR:
-    Loads the env file (if present) without overriding variables already set in
-    your shell, then installs deps, runs DB migrations, and launches both
-    services. Ctrl-C stops everything; if one service exits, the other is
+    Reads the env file (if present) without overriding variables already set in
+    your shell, using it to resolve this launcher's BACKEND_HOST, BACKEND_PORT
+    and FRONTEND_PORT. It then installs deps, runs DB migrations, and launches
+    both services. Ctrl-C stops everything; if one service exits, the other is
     stopped too.
 
     Precedence for host/port: CLI flag > environment / env file > default.
     The env file may also set BACKEND_HOST, BACKEND_PORT and FRONTEND_PORT.
+
+    What --env-file affects beyond those three vars:
+      - Backend: an explicitly passed --env-file is handed to the backend as its
+        PEREVODITARR_ENV_FILE, so it loads that file above backend/.env (a
+        PEREVODITARR_ENV_FILE already set in your shell still wins). Without
+        --env-file, this is left unset and backend/.env keeps precedence over
+        <repo>/.env.
+      - Frontend: Vite always reads <repo>/.env and frontend/.env itself and
+        cannot be pointed at a custom path, so --env-file does not reach it
+        apart from the three host/port vars above.
 
 EXAMPLES:
     scripts/start.sh                       # full stack, install + migrate
@@ -87,8 +100,8 @@ while [[ $# -gt 0 ]]; do
 		--no-install)       DO_INSTALL=0 ;;
 		--no-migrate)       DO_MIGRATE=0 ;;
 		--no-reload)        BACKEND_RELOAD=0 ;;
-		--env-file)         ENV_FILE="${2:?--env-file needs a path}"; shift ;;
-		--env-file=*)       ENV_FILE="${1#*=}" ;;
+		--env-file)         ENV_FILE="${2:?--env-file needs a path}"; ENV_FILE_EXPLICIT=1; shift ;;
+		--env-file=*)       ENV_FILE="${1#*=}"; ENV_FILE_EXPLICIT=1 ;;
 		--backend-host)     CLI_BACKEND_HOST="${2:?--backend-host needs a value}"; shift ;;
 		--backend-host=*)   CLI_BACKEND_HOST="${1#*=}" ;;
 		--backend-port)     CLI_BACKEND_PORT="${2:?--backend-port needs a value}"; shift ;;
@@ -166,6 +179,25 @@ load_env_file() {
 	done <"$file"
 }
 
+# Decide whether to hand the backend an explicit env-file override. Computed
+# BEFORE load_env_file runs so the `${PEREVODITARR_ENV_FILE+x}` probe sees only
+# the real environment, never a value the file itself might declare. When the
+# user explicitly passed --env-file, the backend gets PEREVODITARR_ENV_FILE so
+# core.env loads that file at its tier-2 slot (above backend/.env, below the
+# real environment) — but only if the real environment does not already set
+# PEREVODITARR_ENV_FILE, so a user's own shell override always wins. A default
+# run leaves this empty, so backend/.env keeps precedence over root .env and the
+# iter-3 no-inversion behavior is preserved. Absolute path: the backend cd's
+# into BACKEND_DIR before reading it, while --env-file may be relative to this
+# launcher's CWD (unchanged here, so $PWD still points at the invocation dir).
+BACKEND_ENV_FILE=""
+if [[ "${ENV_FILE_EXPLICIT}" -eq 1 && -z "${PEREVODITARR_ENV_FILE+x}" ]]; then
+	case "${ENV_FILE}" in
+		/*) BACKEND_ENV_FILE="${ENV_FILE}" ;;
+		*)  BACKEND_ENV_FILE="${PWD}/${ENV_FILE}" ;;
+	esac
+fi
+
 load_env_file "${ENV_FILE}"
 
 # Resolve final host/port: CLI flag > env (incl. file) > default.
@@ -231,9 +263,14 @@ start_service() {
 if [[ "${RUN_BACKEND}" -eq 1 ]]; then
 	reload_flag=()
 	[[ "${BACKEND_RELOAD}" -eq 1 ]] && reload_flag=(--reload)
+	# Child env: always LITESTAR_APP; plus PEREVODITARR_ENV_FILE when the user
+	# passed an explicit --env-file (BACKEND_ENV_FILE is empty otherwise, so a
+	# default run sets nothing extra — see the resolution block above).
+	backend_env=(LITESTAR_APP=perevoditarr.app:app)
+	[[ -n "${BACKEND_ENV_FILE}" ]] && backend_env+=("PEREVODITARR_ENV_FILE=${BACKEND_ENV_FILE}")
 	log "backend  → http://${BACKEND_HOST}:${BACKEND_PORT}"
 	start_service backend_pid $'\033[1;32m[backend] \033[0m' \
-		env LITESTAR_APP=perevoditarr.app:app \
+		env "${backend_env[@]}" \
 		bash -c 'cd "$1" && exec uv run litestar run --host "$2" --port "$3" "${@:4}"' \
 		_ "${BACKEND_DIR}" "${BACKEND_HOST}" "${BACKEND_PORT}" "${reload_flag[@]+"${reload_flag[@]}"}"
 fi

@@ -230,3 +230,6 @@ vite.config.ts.timestamp-*
 
 # Local SQLite artifacts (dev runs, CI migration checks)
 backend/*.db
+
+# ADRs — not tracked; rationale lives inline in the code
+docs/adr/

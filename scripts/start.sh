@@ -7,9 +7,26 @@
 # both down cleanly on Ctrl-C. Reads a shared `.env` from the repo root (both
 # services also read it natively; see .env.example).
 #
+# Requires bash >= 4.3 (uses `declare -g` and a bare `wait -n`). Stock macOS
+# ships bash 3.2 as /bin/bash, so install a newer bash there (e.g.
+# `brew install bash`) and invoke this script with it.
+#
 # Run `scripts/start.sh --help` for options.
 
 set -euo pipefail
+
+# --- interpreter version guard ----------------------------------------------
+
+# Fail fast if the interpreter is too old: `declare -g` (env loader) needs bash
+# 4.2 and a bare `wait -n` (service wait) needs bash 4.3, so 4.3 is the floor.
+# Stock macOS still ships bash 3.2 as /bin/bash, where those would abort later
+# with a cryptic error. Keep this block bash-3.2-safe (no 4.x-only syntax) — it
+# runs before the version is confirmed, and `die()` is not defined yet.
+if [[ "${BASH_VERSINFO[0]:-0}" -lt 4 || ( "${BASH_VERSINFO[0]:-0}" -eq 4 && "${BASH_VERSINFO[1]:-0}" -lt 3 ) ]]; then
+	printf '[start] this script requires bash >= 4.3 (found %s). On macOS, install a modern bash (e.g. `brew install bash`) and run this script with it.\n' \
+		"${BASH_VERSION:-unknown}" >&2
+	exit 1
+fi
 
 # --- locations --------------------------------------------------------------
 
@@ -83,6 +100,10 @@ BEHAVIOR:
         cannot be pointed at a custom path, so --env-file does not reach it
         apart from the three host/port vars above.
 
+REQUIREMENTS:
+    bash >= 4.3 (uses `declare -g` and a bare `wait -n`). Stock macOS ships
+    bash 3.2 — install a newer bash, e.g. `brew install bash`.
+
 EXAMPLES:
     scripts/start.sh                       # full stack, install + migrate
     scripts/start.sh --backend-only        # just the API
@@ -132,6 +153,9 @@ fi
 # Sourcing is avoided on purpose so a `.env` can never execute shell code.
 load_env_file() {
 	local _ef_file="$1" _ef_line _ef_key _ef_value _ef_q _ef_rest
+	# Keys this file itself has already set, so a later duplicate can override an
+	# earlier one (last-wins) without being mistaken for a pre-existing var.
+	local -A _ef_from_file=()
 	[[ -f "$_ef_file" ]] || { log "no env file at ${_ef_file} (using defaults)"; return 0; }
 	# Best-effort like core/env.py's load_dotenv_files (unreadable files skipped):
 	# `-f` is a type check, not a permission check, so an existing-but-unreadable
@@ -177,14 +201,19 @@ load_env_file() {
 			_ef_value="${_ef_value%% #*}"
 			_ef_value="${_ef_value%"${_ef_value##*[![:space:]]}"}"   # rtrim after comment strip
 		fi
-		# Do not override an already-set variable.
-		[[ -n "${!_ef_key+x}" ]] && continue
+		# Real environment / pre-existing shell vars win over the file, but a
+		# duplicate key later in the SAME file overrides the earlier one
+		# (last-wins), matching core/env.py's parse_env_file and Vite/Bun's
+		# parseEnv. Without the _ef_from_file check, the `declare -g` below would
+		# make the first occurrence look "already set" and drop later duplicates.
+		[[ -n "${!_ef_key+x}" && -z "${_ef_from_file[$_ef_key]+x}" ]] && continue
 		# `declare -g` (not `export`): set a global, unexported shell variable from
 		# inside this function so the host/port resolution below can read it, while
 		# keeping it out of the child services' environment (both children re-read
 		# `.env` themselves). `-g` is what promotes the assignment to global scope
 		# instead of leaving it a function-local.
 		declare -g "${_ef_key}=${_ef_value}"
+		_ef_from_file["$_ef_key"]=1
 	done <"$_ef_file"
 }
 

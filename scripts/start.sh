@@ -133,6 +133,11 @@ fi
 load_env_file() {
 	local _ef_file="$1" _ef_line _ef_key _ef_value _ef_q _ef_rest
 	[[ -f "$_ef_file" ]] || { log "no env file at ${_ef_file} (using defaults)"; return 0; }
+	# Best-effort like core/env.py's load_dotenv_files (unreadable files skipped):
+	# `-f` is a type check, not a permission check, so an existing-but-unreadable
+	# file would sail past it and abort the launcher when the `done <"$_ef_file"`
+	# redirection below fails to open under `set -euo pipefail`. Skip+warn instead.
+	[[ -r "$_ef_file" ]] || { warn "env file at ${_ef_file} not readable; skipping (using defaults)"; return 0; }
 	log "loading env from ${_ef_file}"
 	# Locals use a `_ef_` prefix so a lowercase `.env` key (e.g. `key=`, `value=`)
 	# can never collide with one of them at the `${!_ef_key+x}` already-set probe

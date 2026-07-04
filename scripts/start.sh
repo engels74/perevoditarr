@@ -269,7 +269,15 @@ fi
 
 if [[ "${DO_MIGRATE}" -eq 1 && "${RUN_BACKEND}" -eq 1 ]]; then
 	log "running database migrations (alembic upgrade head)…"
-	( cd "${BACKEND_DIR}" && uv run alembic upgrade head )
+	# Thread the same --env-file override the backend service gets (see
+	# backend_env below): alembic's env.py resolves its DB URL through the same
+	# load_settings()/load_dotenv_files() path, so without PEREVODITARR_ENV_FILE
+	# here it would migrate backend/.env's database while the backend boots
+	# against the --env-file one. BACKEND_ENV_FILE is absolute, so it survives
+	# the cd into BACKEND_DIR; empty on a default run, so nothing extra is set.
+	migrate_env=()
+	[[ -n "${BACKEND_ENV_FILE}" ]] && migrate_env=("PEREVODITARR_ENV_FILE=${BACKEND_ENV_FILE}")
+	( cd "${BACKEND_DIR}" && env "${migrate_env[@]+"${migrate_env[@]}"}" uv run alembic upgrade head )
 fi
 
 # --- launch -----------------------------------------------------------------

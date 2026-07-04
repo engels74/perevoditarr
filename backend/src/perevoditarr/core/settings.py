@@ -11,6 +11,8 @@ from typing import Literal
 
 import msgspec
 
+from perevoditarr.core.env import load_dotenv_files
+
 ENV_PREFIX = "PEREVODITARR_"
 
 _ALLOWED_DB_SCHEMES = frozenset({"postgresql+asyncpg", "sqlite+aiosqlite"})
@@ -71,6 +73,11 @@ _LIST_FIELDS = frozenset({"trusted_proxies"})
 
 
 def load_settings(environ: Mapping[str, str] | None = None) -> AppSettings:
+    # Real-environment path: opportunistically hydrate os.environ from a root or
+    # backend `.env` first (no override — real env still wins). An explicit
+    # `environ` (tests) stays hermetic and never touches the filesystem.
+    if environ is None:
+        load_dotenv_files()
     source = os.environ if environ is None else environ
     raw: dict[str, object] = {}
     for key, value in source.items():
